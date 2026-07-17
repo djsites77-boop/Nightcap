@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Nightcap design tokens.
+ * Ground: cool paper / true-night navy (not a generic gray, not the
+ * warm-cream-plus-serif combo). Single accent: a deep teal, chosen precisely
+ * because it sits far from the status trio's hues (green/orange/red) so it
+ * never gets mistaken for a compliance signal. Status colors are fixed and
+ * mode-invariant (validated for contrast on both surfaces) — see
+ * NIGHTCAP_BUILD_SPEC.md and design/nightcap-prototype.html for the original
+ * palette work this carries forward.
+ */
+:root {
+  --background: #f5f7fa;
+  --surface: #ffffff;
+  --surface-alt: #eceff3;
+  --surface-sunken: #e4e8ed;
+  --foreground: #12172b;
+  --muted-foreground: #545f70;
+  --subtle-foreground: #8994a3;
+  --border: #dce1e8;
+  --border-strong: #c3cbd6;
+
+  --accent: #0f6e6e;
+  --accent-strong: #0b5757;
+  --accent-soft: #e3f1f0;
+  --accent-foreground: #ffffff;
+
+  --status-ok: #0ca30c;
+  --status-ok-soft: #e3f6e1;
+  --status-warning: #ec835a;
+  --status-warning-soft: #fdeae1;
+  --status-risk: #d03b3b;
+  --status-risk-soft: #fbe4e2;
+
+  --rail-background: #12172b;
+  --rail-surface: #1b2138;
+  --rail-foreground: #adb4c6;
+  --rail-foreground-active: #ffffff;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #0b0f1a;
+  --surface: #131a2b;
+  --surface-alt: #1b2338;
+  --surface-sunken: #0f1526;
+  --foreground: #e8eaf0;
+  --muted-foreground: #a7afc0;
+  --subtle-foreground: #6b7690;
+  --border: #2a3348;
+  --border-strong: #37415c;
+
+  --accent: #3fbdb5;
+  --accent-strong: #6fd4cc;
+  --accent-soft: #16302e;
+  --accent-foreground: #06211f;
+
+  --status-ok: #4caf6d;
+  --status-ok-soft: #10280f;
+  --status-warning: #d3a32e;
+  --status-warning-soft: #38200f;
+  --status-risk: #e5726b;
+  --status-risk-soft: #351212;
+
+  --rail-background: #080b14;
+  --rail-surface: #0f1526;
+  --rail-foreground: #7c86a0;
+  --rail-foreground-active: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-soft: var(--status-ok-soft);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-risk: var(--status-risk);
+  --color-status-risk-soft: var(--status-risk-soft);
+
+  --color-rail-background: var(--rail-background);
+  --color-rail-surface: var(--rail-surface);
+  --color-rail-foreground: var(--rail-foreground);
+  --color-rail-foreground-active: var(--rail-foreground-active);
+
+  --font-display: var(--font-source-serif), Georgia, serif;
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

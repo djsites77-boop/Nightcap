@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nightcap
+    ports:
+      # High port on the host, per project convention — maps to Postgres's
+      # normal 5432 inside the container.
+      - "4500:5432"
+    volumes:
+      - nightcap_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nightcap_pgdata:

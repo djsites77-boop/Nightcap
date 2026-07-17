@@ -1,0 +1,478 @@
+// Nightcap — Prisma schema
+// Translates NIGHTCAP_BUILD_SPEC.md §3 (Data model) into Postgres tables,
+// including the six v2 fixes: ComplianceRule uniqueness, Property.bedroomCount /
+// roomsOffered, CalendarConnection.consecutiveEmptyFetches, encrypted storage
+// for ical_url and documents (§12), and per-night attribution support (§6a) via
+// NightTally / MatPeriod being derived tables, not hand-maintained totals.
+//
+// User/Session/Account/Verification below are Better Auth's own tables
+// (see src/lib/auth.ts) — Property etc. hang off Better Auth's User.id.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7: the client no longer reads a schema-embedded url — it takes a
+// driver adapter at construction time instead (see src/lib/db.ts). This
+// datasource block is used by `migrate`/`db push` via prisma.config.ts.
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Auth (Better Auth) — do not hand-edit field names here without re-running
+// `better-auth generate`, the adapter expects this exact shape.
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  host
+  admin
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  // Declared to Better Auth as an additionalField (input: false, so it can
+  // never be set from a signup payload) — see src/lib/auth.ts.
+  role          UserRole @default(host)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions           Session[]
+  accounts           Account[]
+  properties         Property[]
+  auditLogEntries    AuditLog[]
+  matPeriodsRemitted MatPeriod[]     @relation("MatPeriodRemittedBy")
+  pmsConnections     PmsConnection[]
+  subscription       Subscription?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Rules engine (spec §2) — configurable data, never application constants.
+// ---------------------------------------------------------------------------
+
+enum RuleType {
+  night_cap
+  mat_rate
+  registration_fee
+  occupancy_limit
+  record_retention_years
+  partial_unit_bedroom_cap
+}
+
+enum UnitType {
+  entire_home
+  partial_unit
+  all
+}
+
+model Municipality {
+  id       String  @id @default(cuid())
+  name     String
+  province String
+  active   Boolean @default(false)
+
+  complianceRules ComplianceRule[]
+  properties      Property[]
+
+  @@unique([name, province])
+  @@map("municipality")
+}
+
+model ComplianceRule {
+  id             String       @id @default(cuid())
+  municipalityId String
+  municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
+  ruleType       RuleType
+  unitType       UnitType
+  // Shape depends on ruleType, e.g. { "nights": 180 } | { "rate": 0.06 } |
+  // { "feeCents": 5322 } | { "maxBedroomsSimultaneous": 3, "oneFewerThanTotal": true }
+  value          Json
+  effectiveDate  DateTime
+  sourceUrl      String?
+  verifiedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  // Fix #6: two rules must not silently share an effective date for the same
+  // (municipality, rule type, unit type) — "current rule" is ambiguous otherwise.
+  @@unique([municipalityId, ruleType, unitType, effectiveDate])
+  @@map("compliance_rule")
+}
+
+// ---------------------------------------------------------------------------
+// Properties
+// ---------------------------------------------------------------------------
+
+enum PropertyUnitType {
+  entire_home
+  partial_unit
+}
+
+enum RegistrationStatus {
+  not_registered
+  pending
+  active
+  expired
+}
+
+model Property {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nickname       String
+  address        String
+  municipalityId String
+  municipality   Municipality     @relation(fields: [municipalityId], references: [id])
+  unitType       PropertyUnitType
+
+  // Fix #2: required for the partial-unit bedroom cap rule to be checkable at all.
+  bedroomCount Int
+  // Fix #2: only meaningful when unitType = partial_unit; the number of bedrooms
+  // the host has configured for STR, checked against min(3, bedroomCount - 1).
+  roomsOffered Int?
+
+  registrationNumber     String?
+  registrationStatus     RegistrationStatus @default(not_registered)
+  registrationIssueDate  DateTime?
+  registrationExpiryDate DateTime?
+
+  createdAt  DateTime  @default(now())
+  archivedAt DateTime?
+
+  calendarConnections CalendarConnection[]
+  bookings            Booking[]
+  nightTallies        NightTally[]
+  matPeriods          MatPeriod[]
+  inspectionItems     InspectionItem[]
+  documents           Document[]
+  auditLogEntries     AuditLog[]
+  pmsListingLinks     PmsListingLink[]
+
+  @@map("property")
+}
+
+// ---------------------------------------------------------------------------
+// Calendar sync (spec §5a)
+// ---------------------------------------------------------------------------
+
+enum CalendarPlatform {
+  airbnb
+  vrbo
+  direct
+}
+
+enum SyncStatus {
+  connected
+  error
+  disconnected
+}
+
+model CalendarConnection {
+  id         String           @id @default(cuid())
+  propertyId String
+  property   Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  platform   CalendarPlatform
+
+  // Fix #5: encrypted at rest (AES-256-GCM, see src/lib/crypto.ts). Never the
+  // raw URL — anyone holding it can read the host's full booking calendar.
+  icalUrlCiphertext String
+  icalUrlIv         String
+  icalUrlLastFour   String // for masked display only, e.g. "…3e91"
+
+  lastSyncedAt DateTime?
+  syncStatus   SyncStatus @default(connected)
+  lastError    String?
+
+  // Fix #4: consecutive empty/failed fetches. A fetch that returns zero events
+  // must not be treated as "every booking cancelled" — see lib/ical-sync.ts.
+  consecutiveEmptyFetches Int @default(0)
+
+  createdAt DateTime  @default(now())
+  bookings  Booking[]
+
+  @@map("calendar_connection")
+}
+
+enum BookingSource {
+  ical_import
+  manual
+  csv_import
+  pms_sync
+}
+
+model Booking {
+  id                   String              @id @default(cuid())
+  propertyId           String
+  property             Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  calendarConnectionId String?
+  calendarConnection   CalendarConnection? @relation(fields: [calendarConnectionId], references: [id], onDelete: SetNull)
+
+  checkIn     DateTime
+  checkOut    DateTime
+  nights      Int
+  platform    CalendarPlatform
+  // Known only once a Tier 1 PMS sync or Tier 2 CSV import backfills it —
+  // iCal alone gives dates and a UID, never price (spec §5a).
+  grossAmount Decimal?         @db.Decimal(10, 2)
+
+  source                   BookingSource
+  externalUid              String?
+  cancelledAt              DateTime?
+  // Fix #4: set the first time a sync finds this booking missing from the
+  // feed. Only cancelled once it's *still* missing on the next successful
+  // sync — a single missing read is not trusted as a real cancellation.
+  pendingCancellationSince DateTime?
+
+  createdAt DateTime @default(now())
+
+  // De-dupe on the ICS UID within a single calendar feed, not on date range.
+  @@unique([calendarConnectionId, externalUid])
+  @@map("booking")
+}
+
+// ---------------------------------------------------------------------------
+// Night cap + MAT — both derived via per-night attribution (spec §6a)
+// ---------------------------------------------------------------------------
+
+model NightTally {
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  calendarYear   Int
+  nightsUsed     Int
+  cap            Int
+  lastComputedAt DateTime @default(now())
+
+  @@id([propertyId, calendarYear])
+  @@map("night_tally")
+}
+
+enum MatStatus {
+  due
+  remitted
+}
+
+model MatPeriod {
+  id           String    @id @default(cuid())
+  propertyId   String
+  property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  periodStart  DateTime
+  periodEnd    DateTime
+  // Sum of per-night-prorated booking revenue attributed to this period —
+  // never a naive sum of bookings whose check_in falls inside it (§6a/§7).
+  grossRevenue Decimal   @db.Decimal(12, 2)
+  rateApplied  Decimal   @db.Decimal(5, 4)
+  amountOwed   Decimal   @db.Decimal(12, 2)
+  status       MatStatus @default(due)
+  remittedAt   DateTime?
+  remittedById String?
+  remittedBy   User?     @relation("MatPeriodRemittedBy", fields: [remittedById], references: [id], onDelete: SetNull)
+
+  @@unique([propertyId, periodStart, periodEnd])
+  @@map("mat_period")
+}
+
+// ---------------------------------------------------------------------------
+// Inspection checklist — itemKey is a String, not an enum, per spec: it must
+// stay extensible per municipality via ComplianceRule, not hardcoded here.
+// ---------------------------------------------------------------------------
+
+model InspectionItem {
+  id          String    @id @default(cuid())
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  itemKey     String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  completedBy String?
+
+  @@unique([propertyId, itemKey])
+  @@map("inspection_item")
+}
+
+// ---------------------------------------------------------------------------
+// Documents — storageKey is a private object-storage key, never a public URL
+// (spec §12). Signed URLs are minted on request, see src/lib/storage.ts.
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  fire_safety_cert
+  insurance
+  floor_plan
+  other
+}
+
+model Document {
+  id         String       @id @default(cuid())
+  propertyId String
+  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  docType    DocumentType
+  storageKey String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  uploadedAt DateTime     @default(now())
+  expiryDate DateTime?
+
+  @@map("document")
+}
+
+// ---------------------------------------------------------------------------
+// Audit log — append-only. Application code must never UPDATE or DELETE rows
+// here; that's the entire point (spec §3, "prove you tracked this").
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  action     String
+  payload    Json
+  createdAt  DateTime  @default(now())
+
+  @@map("audit_log")
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1 PMS OAuth (spec §5b) — not in the original v2 data model, added to
+// support Hospitable/Guesty account-level OAuth. A PMS account can cover
+// multiple properties, so this connects at the User level with a mapping
+// table to individual properties (matched by the host after connecting).
+// ---------------------------------------------------------------------------
+
+enum PmsProvider {
+  hospitable
+  guesty
+}
+
+enum PmsConnectionStatus {
+  connected
+  error
+  disconnected
+}
+
+model PmsConnection {
+  id                String      @id @default(cuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          PmsProvider
+  externalAccountId String
+
+  // Encrypted at rest, same treatment as CalendarConnection.ical_url (§12).
+  accessTokenCiphertext  String
+  accessTokenIv          String
+  refreshTokenCiphertext String?
+  refreshTokenIv         String?
+  expiresAt              DateTime?
+
+  status    PmsConnectionStatus @default(connected)
+  lastError String?
+  createdAt DateTime            @default(now())
+
+  listingLinks PmsListingLink[]
+
+  @@unique([userId, provider, externalAccountId])
+  @@map("pms_connection")
+}
+
+model PmsListingLink {
+  id                String        @id @default(cuid())
+  pmsConnectionId   String
+  pmsConnection     PmsConnection @relation(fields: [pmsConnectionId], references: [id], onDelete: Cascade)
+  externalListingId String
+  propertyId        String?
+  property          Property?     @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now())
+
+  @@unique([pmsConnectionId, externalListingId])
+  @@map("pms_listing_link")
+}
+
+// ---------------------------------------------------------------------------
+// Subscription — no payment collection wired up yet (would need real Stripe
+// credentials); this models the tier itself so property-count limits and the
+// admin's "how long has this host been on this tier" view are real, with
+// tier changes made by an admin for now instead of self-serve checkout.
+// ---------------------------------------------------------------------------
+
+enum SubscriptionTier {
+  free
+  starter
+  growth
+  portfolio
+}
+
+enum SubscriptionStatus {
+  active
+  canceled
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier                  SubscriptionTier   @default(free)
+  // null = unlimited (portfolio tier)
+  propertyLimit         Int?
+  pricePerPropertyCents Int
+  status                SubscriptionStatus @default(active)
+  startedAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@map("subscription")
+}
