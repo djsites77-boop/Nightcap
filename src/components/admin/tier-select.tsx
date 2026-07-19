@@ -2,22 +2,39 @@
 
 import { useTransition } from "react";
 import { setUserTier } from "@/app/actions/admin";
-import type { SubscriptionTierKey } from "@/lib/subscription-config";
-import { TIER_CONFIG } from "@/lib/subscription-config";
+import type { TierOption } from "@/lib/subscription-config";
 
-export function TierSelect({ userId, currentTier }: { userId: string; currentTier: SubscriptionTierKey }) {
+export function TierSelect({
+  userId,
+  currentTierId,
+  tiers,
+}: {
+  userId: string;
+  currentTierId: string | null;
+  tiers: TierOption[];
+}) {
   const [pending, startTransition] = useTransition();
 
   return (
     <select
-      defaultValue={currentTier}
+      defaultValue={currentTierId ?? ""}
       disabled={pending}
-      onChange={(e) => startTransition(() => setUserTier(userId, e.target.value as SubscriptionTierKey))}
-      className="rounded-md border border-border-strong bg-surface px-2 py-1 text-xs font-semibold"
+      aria-label="Subscription tier"
+      onChange={(e) => {
+        const tierId = e.target.value;
+        if (!tierId) return;
+        startTransition(() => setUserTier(userId, tierId));
+      }}
+      className="h-9 min-h-9 cursor-pointer rounded-md border border-border-strong bg-surface px-2.5 text-xs font-semibold transition-colors duration-150 hover:border-subtle-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
     >
-      {(Object.keys(TIER_CONFIG) as SubscriptionTierKey[]).map((tier) => (
-        <option key={tier} value={tier}>
-          {TIER_CONFIG[tier].label}
+      {currentTierId === null && (
+        <option value="" disabled>
+          — no subscription —
+        </option>
+      )}
+      {tiers.map((tier) => (
+        <option key={tier.id} value={tier.id}>
+          {tier.name}
         </option>
       ))}
     </select>

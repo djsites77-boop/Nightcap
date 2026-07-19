@@ -7,7 +7,13 @@ import { requireSession } from "@/lib/session";
 import { encryptSecret, lastFour } from "@/lib/crypto";
 import { syncCalendarConnection } from "@/lib/ical-sync";
 import { recomputeNightTally } from "@/lib/night-tally";
-import { ensureSubscription, TIER_CONFIG } from "@/lib/subscription";
+import { ensureSubscription } from "@/lib/subscription";
+import {
+  resolvePartialUnitBedroomCap,
+  type ComplianceRuleRow,
+} from "@/lib/compliance/rules";
+import { ensureInspectionChecklist } from "@/lib/inspection";
+import { ensureMatPeriods } from "@/lib/mat-ledger";
 
 const createPropertySchema = z
   .object({
@@ -42,7 +48,9 @@ export async function createProperty(formData: FormData) {
 
   const municipality = await prisma.municipality.findUniqueOrThrow({ where: { id: data.municipalityId } });
   if (!municipality.active) {
-    throw new Error(`${municipality.name} isn't enabled yet — Toronto only at launch.`);
+    throw new Error(
+      `${municipality.name} isn't enabled yet — ask a platform admin to enable it under Jurisdictions.`
+    );
   }
 
   const subscription = await ensureSubscription(session.user.id);
@@ -52,11 +60,39 @@ export async function createProperty(formData: FormData) {
       where: { userId: session.user.id, archivedAt: null },
     });
     if (currentCount >= limit) {
-      const tierLabel = TIER_CONFIG[subscription.tier].label;
+      const tierLabel = subscription.tier.name;
       throw new Error(
         `Your ${tierLabel} plan is limited to ${limit} ${limit === 1 ? "property" : "properties"}. Upgrade to add more.`
       );
     }
+  }
+
+  let roomsOffered: number | null = null;
+  if (data.unitType === "partial_unit") {
+    const offered = data.roomsOffered ?? 0;
+    const rules = await prisma.complianceRule.findMany({
+      where: { municipalityId: data.municipalityId, ruleType: "partial_unit_bedroom_cap" },
+      select: { ruleType: true, unitType: true, value: true, effectiveDate: true },
+    });
+    const ruleRows: ComplianceRuleRow[] = rules.map((r) => ({
+      ruleType: r.ruleType,
+      unitType: r.unitType,
+      value: r.value,
+      effectiveDate: r.effectiveDate,
+    }));
+    const cap = resolvePartialUnitBedroomCap(ruleRows, data.bedroomCount, new Date());
+    if (cap == null) {
+      throw new Error("Bedroom-cap rules are not configured for this municipality yet.");
+    }
+    if (offered < 1) {
+      throw new Error("Rooms offered must be at least 1 for a partial-unit listing.");
+    }
+    if (offered > cap) {
+      throw new Error(
+        `Rooms offered (${offered}) exceeds the municipal cap of ${cap} for a ${data.bedroomCount}-bedroom unit.`
+      );
+    }
+    roomsOffered = offered;
   }
 
   const property = await prisma.property.create({
@@ -67,16 +103,24 @@ export async function createProperty(formData: FormData) {
       municipalityId: data.municipalityId,
       unitType: data.unitType,
       bedroomCount: data.bedroomCount,
-      roomsOffered: data.unitType === "partial_unit" ? data.roomsOffered : null,
+      roomsOffered,
     },
   });
+
+  await ensureInspectionChecklist(property.id);
+  await ensureMatPeriods(property.id, new Date().getUTCFullYear());
 
   await prisma.auditLog.create({
     data: {
       userId: session.user.id,
       propertyId: property.id,
       action: "property_created",
-      payload: { nickname: property.nickname, unitType: property.unitType },
+      payload: {
+        nickname: property.nickname,
+        unitType: property.unitType,
+        bedroomCount: property.bedroomCount,
+        roomsOffered: property.roomsOffered,
+      },
     },
   });
 
@@ -118,6 +162,15 @@ export async function connectCalendar(propertyId: string, formData: FormData) {
   // here just leave the connection in an error state, which the property
   // detail screen surfaces — they don't block onboarding.
   await syncCalendarConnection(connection.id).catch(() => undefined);
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      propertyId,
+      action: "calendar_connected",
+      payload: { connectionId: connection.id, platform: parsed.data.platform },
+    },
+  });
 
   redirect(`/properties/${propertyId}/registration`);
 }

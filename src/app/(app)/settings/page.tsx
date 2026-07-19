@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/session";
-import { ensureSubscription, TIER_CONFIG, daysSince } from "@/lib/subscription";
+import { ensureSubscription, daysSince } from "@/lib/subscription";
 import { PMS_PROVIDERS, isPmsProviderConfigured, type PmsProviderKey } from "@/lib/pms/config";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 
 function fmtMoney(cents: number): string {
   return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 });
@@ -16,19 +17,24 @@ export default async function SettingsPage() {
     ensureSubscription(session.user.id),
     prisma.property.count({ where: { userId: session.user.id, archivedAt: null } }),
   ]);
-  const config = TIER_CONFIG[subscription.tier];
-  const estimateCents = config.pricePerPropertyCents * propertyCount;
+  // Billed off the subscription's snapshotted price, not the live catalog —
+  // catalog edits in /admin/tiers don't reprice existing hosts until an admin
+  // re-assigns their tier.
+  const estimateCents = subscription.pricePerPropertyCents * propertyCount;
 
   const pmsConnections = await prisma.pmsConnection.findMany({ where: { userId: session.user.id } });
   const providerKeys = Object.keys(PMS_PROVIDERS) as PmsProviderKey[];
 
   return (
     <div>
-      <h1 className="mb-1 font-display text-2xl font-semibold text-foreground">Settings</h1>
-      <p className="mb-6 text-sm text-muted-foreground">Your account and plan.</p>
+      <PageHeader
+        eyebrow="Account"
+        title="Settings"
+        description="Your profile, plan snapshot, and PMS connections."
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="animate-page-in">
           <CardHeader>
             <CardTitle>Profile</CardTitle>
           </CardHeader>
@@ -51,19 +57,19 @@ export default async function SettingsPage() {
           <CardContent className="flex flex-col gap-3 pt-3 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-subtle-foreground">Tier</span>
-              <Badge variant="neutral">{config.label}</Badge>
+              <Badge variant="neutral">{subscription.tier.name}</Badge>
             </div>
             <div className="flex justify-between">
               <span className="text-subtle-foreground">Properties</span>
               <span className="font-mono font-semibold tabular-nums">
                 {propertyCount}
-                {config.propertyLimit !== null ? ` / ${config.propertyLimit}` : " (unlimited)"}
+                {subscription.propertyLimit !== null ? ` / ${subscription.propertyLimit}` : " (unlimited)"}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-subtle-foreground">Rate</span>
               <span className="font-mono font-semibold tabular-nums">
-                {fmtMoney(config.pricePerPropertyCents)}/property/mo
+                {fmtMoney(subscription.pricePerPropertyCents)}/property/mo
               </span>
             </div>
             <div className="flex justify-between">
@@ -86,8 +92,9 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-3 text-sm">
             <p className="text-xs text-subtle-foreground">
-              Connect Hospitable or Guesty to pull reservation revenue automatically — no manual entry, no
-              CSV. Requires the platform to have real developer credentials configured.
+              OAuth connect is implemented and stores encrypted tokens. Reservation pull (the step that
+              fills MAT revenue automatically) is not wired yet — use CSV import or manual revenue entry
+              until then. Requires real developer credentials in the environment.
             </p>
             {providerKeys.map((key) => {
               const provider = PMS_PROVIDERS[key];

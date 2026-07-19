@@ -30,7 +30,94 @@ function daysAgo(days: number): Date {
   return daysFromNow(-days);
 }
 
+// ---------------------------------------------------------------------------
+// Canadian jurisdictions with an accommodation tax on short-term rentals
+// (MAT in Ontario, MRDT in BC, provincial tourism levy in Alberta, Québec
+// lodging tax, etc.). Rates are seeded as dated mat_rate ComplianceRule rows
+// — the platform admin can change any of them in /admin/tax-rates. Effective
+// dates reflect when the *current* rate took effect per the cited source
+// (verified 2026-07-19); scheduled future changes are extra dated rows.
+// ---------------------------------------------------------------------------
+const CANADIAN_JURISDICTIONS: Array<{
+  name: string;
+  province: string;
+  rates: Array<{ rate: number; effectiveDate: string; sourceUrl: string }>;
+}> = [
+  // Ontario MAT (rates + effective dates per municipal scan COR2026-24 and city sites)
+  { name: "Ottawa", province: "ON", rates: [
+    { rate: 0.05, effectiveDate: "2023-01-01", sourceUrl: "https://ottawa.ca/en/living-ottawa/laws-licences-and-permits/laws/laws-z/municipal-accommodation-tax-law-no-2022-56" },
+    { rate: 0.06, effectiveDate: "2026-01-01", sourceUrl: "https://ottawa.ca/en/living-ottawa/laws-licences-and-permits/laws/laws-z/municipal-accommodation-tax-law-no-2022-56" },
+  ]},
+  { name: "Mississauga", province: "ON", rates: [{ rate: 0.06, effectiveDate: "2024-01-01", sourceUrl: "https://www.mississauga.ca/publication/municipal-accommodation-tax-by-law/" }] },
+  { name: "Hamilton", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2023-01-01", sourceUrl: "https://www.hamilton.ca/home-neighbourhood/house-home/municipal-accommodation-tax" }] },
+  { name: "London", province: "ON", rates: [{ rate: 0.05, effectiveDate: "2022-10-01", sourceUrl: "https://london.ca/business-development/municipal-accommodation-tax" }] },
+  { name: "Kingston", province: "ON", rates: [{ rate: 0.05, effectiveDate: "2024-01-01", sourceUrl: "https://www.cityofkingston.ca/business/municipal-accommodation-tax/" }] },
+  { name: "Windsor", province: "ON", rates: [{ rate: 0.06, effectiveDate: "2025-04-01", sourceUrl: "https://www.citywindsor.ca/visitors/municipal-accommodation-tax" }] },
+  { name: "Markham", province: "ON", rates: [{ rate: 0.06, effectiveDate: "2026-04-01", sourceUrl: "https://www.markham.ca/about-city-markham/city-hall/municipal-accommodation-tax" }] },
+  { name: "Vaughan", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2019-04-01", sourceUrl: "https://www.vaughan.ca/services/business/mat" }] },
+  { name: "Niagara Falls", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2026-04-01", sourceUrl: "https://www.niagarafalls.ca/city-hall/finance/municipal-accommodation-tax.aspx" }] },
+  { name: "Niagara-on-the-Lake", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2025-01-01", sourceUrl: "https://www.notl.com/business-development/municipal-accommodation-tax" }] },
+  { name: "Greater Sudbury", province: "ON", rates: [{ rate: 0.06, effectiveDate: "2025-01-01", sourceUrl: "https://www.greatersudbury.ca/do-business/municipal-accommodation-tax/" }] },
+  { name: "Thunder Bay", province: "ON", rates: [{ rate: 0.05, effectiveDate: "2024-10-07", sourceUrl: "https://www.thunderbay.ca/en/city-hall/municipal-accommodation-tax.aspx" }] },
+  { name: "Sault Ste. Marie", province: "ON", rates: [{ rate: 0.06, effectiveDate: "2025-06-02", sourceUrl: "https://saultstemarie.ca/City-Hall/City-Departments/Corporate-Services/Finance/Municipal-Accommodation-Tax.aspx" }] },
+  { name: "Guelph", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2022-09-01", sourceUrl: "https://guelph.ca/business/municipal-accommodation-tax/" }] },
+  { name: "Burlington", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2022-10-01", sourceUrl: "https://www.burlington.ca/en/business-in-burlington/municipal-accommodation-tax.aspx" }] },
+  { name: "Oakville", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2019-01-01", sourceUrl: "https://www.oakville.ca/business-development/municipal-accommodation-tax/" }] },
+  { name: "Pickering", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2025-05-01", sourceUrl: "https://www.pickering.ca/en/city-hall/municipal-accommodation-tax.aspx" }] },
+  { name: "Whitby", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2024-07-15", sourceUrl: "https://www.whitby.ca/en/business/municipal-accommodation-tax.aspx" }] },
+  { name: "Stratford", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2023-07-01", sourceUrl: "https://www.stratford.ca/en/inside-city-hall/municipal-accommodation-tax.aspx" }] },
+  { name: "Collingwood", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2025-03-01", sourceUrl: "https://www.collingwood.ca/business-development/municipal-accommodation-tax" }] },
+  { name: "Prince Edward County", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2021-02-01", sourceUrl: "https://www.thecounty.ca/business-in-the-county/municipal-accommodation-tax/" }] },
+  { name: "Barrie", province: "ON", rates: [{ rate: 0.04, effectiveDate: "2024-01-01", sourceUrl: "https://www.barrie.ca/business-development/municipal-accommodation-tax" }] },
+
+  // British Columbia — 8% PST is collected by platforms; the municipal-level
+  // levy is the 3% MRDT. Vancouver additionally has the 2.5% Major Events
+  // MRDT (Feb 1 2023 – Jan 31 2030), so 5.5% until it sunsets.
+  { name: "Vancouver", province: "BC", rates: [
+    { rate: 0.055, effectiveDate: "2023-02-01", sourceUrl: "https://www2.gov.bc.ca/gov/content/taxes/sales-taxes/pst/charge-collect/accommodation" },
+    { rate: 0.03, effectiveDate: "2030-02-01", sourceUrl: "https://www2.gov.bc.ca/gov/content/taxes/sales-taxes/pst/charge-collect/accommodation" },
+  ]},
+  { name: "Victoria", province: "BC", rates: [{ rate: 0.03, effectiveDate: "2023-01-01", sourceUrl: "https://www2.gov.bc.ca/gov/content/taxes/sales-taxes/pst/charge-collect/accommodation" }] },
+  { name: "Whistler", province: "BC", rates: [{ rate: 0.03, effectiveDate: "2023-01-01", sourceUrl: "https://www2.gov.bc.ca/gov/content/taxes/sales-taxes/pst/charge-collect/accommodation" }] },
+  { name: "Kelowna", province: "BC", rates: [{ rate: 0.03, effectiveDate: "2023-01-01", sourceUrl: "https://www2.gov.bc.ca/gov/content/taxes/sales-taxes/pst/charge-collect/accommodation" }] },
+
+  // Québec — 3.5% provincial lodging tax, administered by Revenu Québec per
+  // tourism region (platforms collect for most STR hosts).
+  { name: "Montréal", province: "QC", rates: [{ rate: 0.035, effectiveDate: "2023-01-01", sourceUrl: "https://www.revenuquebec.ca/en/businesses/consumption-taxes/tax-on-lodging/" }] },
+  { name: "Québec City", province: "QC", rates: [{ rate: 0.035, effectiveDate: "2023-01-01", sourceUrl: "https://www.revenuquebec.ca/en/businesses/consumption-taxes/tax-on-lodging/" }] },
+
+  // Alberta — 4% provincial Tourism Levy applies to STRs (no municipal MAT).
+  { name: "Calgary", province: "AB", rates: [{ rate: 0.04, effectiveDate: "2023-01-01", sourceUrl: "https://www.alberta.ca/tourism-levy" }] },
+  { name: "Edmonton", province: "AB", rates: [{ rate: 0.04, effectiveDate: "2023-01-01", sourceUrl: "https://www.alberta.ca/tourism-levy" }] },
+  { name: "Banff", province: "AB", rates: [{ rate: 0.04, effectiveDate: "2023-01-01", sourceUrl: "https://www.alberta.ca/tourism-levy" }] },
+
+  // Manitoba / Nova Scotia / Newfoundland
+  { name: "Winnipeg", province: "MB", rates: [{ rate: 0.05, effectiveDate: "2023-01-01", sourceUrl: "https://www.winnipeg.ca/taxation-corporate-finance/accommodation-tax" }] },
+  { name: "Halifax", province: "NS", rates: [{ rate: 0.03, effectiveDate: "2023-04-01", sourceUrl: "https://www.halifax.ca/home-property/property-taxes/marketing-levy" }] },
+  { name: "St. John's", province: "NL", rates: [{ rate: 0.04, effectiveDate: "2023-09-01", sourceUrl: "https://www.stjohns.ca/en/business-development/accommodation-tax.aspx" }] },
+];
+
 async function main() {
+  console.log("Seeding pricing tiers...");
+  // Same four rows the pricing_tiers migration inserts for existing DBs —
+  // upserted here (by stable code) so a fresh `db push` database gets them
+  // too, and so isDefault is always exactly one tier.
+  const tierSeed = [
+    { code: "free", name: "Free", description: "First property free — try Nightcap end to end.", propertyLimit: 1 as number | null, pricePerPropertyCents: 0, isDefault: true, displayOrder: 0 },
+    { code: "starter", name: "Starter", description: "For hosts with a handful of listings.", propertyLimit: 5 as number | null, pricePerPropertyCents: 500, isDefault: false, displayOrder: 1 },
+    { code: "growth", name: "Growth", description: "Growing portfolios at a better per-property rate.", propertyLimit: 15 as number | null, pricePerPropertyCents: 400, isDefault: false, displayOrder: 2 },
+    { code: "portfolio", name: "Portfolio", description: "Unlimited properties at the best per-property rate.", propertyLimit: null as number | null, pricePerPropertyCents: 350, isDefault: false, displayOrder: 3 },
+  ];
+  const tiersByCode = new Map<string, { id: string }>();
+  for (const t of tierSeed) {
+    const tier = await prisma.pricingTier.upsert({
+      where: { code: t.code },
+      create: t,
+      update: { name: t.name, description: t.description, propertyLimit: t.propertyLimit, pricePerPropertyCents: t.pricePerPropertyCents, displayOrder: t.displayOrder },
+    });
+    tiersByCode.set(t.code, tier);
+  }
+
   console.log("Seeding municipalities + compliance rules...");
 
   const toronto = await prisma.municipality.upsert({
@@ -38,16 +125,41 @@ async function main() {
     create: { name: "Toronto", province: "ON", active: true },
     update: { active: true },
   });
-  await prisma.municipality.upsert({
-    where: { name_province: { name: "Vancouver", province: "BC" } },
-    create: { name: "Vancouver", province: "BC", active: false },
-    update: {},
-  });
-  await prisma.municipality.upsert({
-    where: { name_province: { name: "Montréal", province: "QC" } },
-    create: { name: "Montréal", province: "QC", active: false },
-    update: {},
-  });
+
+  console.log("Seeding Canadian jurisdiction tax rates...");
+  for (const jurisdiction of CANADIAN_JURISDICTIONS) {
+    const municipality = await prisma.municipality.upsert({
+      where: { name_province: { name: jurisdiction.name, province: jurisdiction.province } },
+      // Enabled so the correct tax rate applies as soon as a host registers a
+      // property there; admins can disable jurisdictions in /admin/rules.
+      create: { name: jurisdiction.name, province: jurisdiction.province, active: true },
+      update: {},
+    });
+
+    for (const { rate, effectiveDate, sourceUrl } of jurisdiction.rates) {
+      const effective = new Date(`${effectiveDate}T00:00:00Z`);
+      await prisma.complianceRule.upsert({
+        where: {
+          municipalityId_ruleType_unitType_effectiveDate: {
+            municipalityId: municipality.id,
+            ruleType: "mat_rate",
+            unitType: "all",
+            effectiveDate: effective,
+          },
+        },
+        create: {
+          municipalityId: municipality.id,
+          ruleType: "mat_rate",
+          unitType: "all",
+          value: { rate },
+          effectiveDate: effective,
+          sourceUrl,
+          verifiedAt: new Date("2026-07-19T00:00:00Z"),
+        },
+        update: { value: { rate }, sourceUrl, verifiedAt: new Date("2026-07-19T00:00:00Z") },
+      });
+    }
+  }
 
   const effectiveDate = new Date("2024-01-01T00:00:00Z");
   const rules: Array<{
@@ -61,6 +173,7 @@ async function main() {
     unitType: "entire_home" | "partial_unit" | "all";
     value: object;
     sourceUrl: string;
+    effectiveDate?: Date;
   }> = [
     {
       ruleType: "night_cap",
@@ -74,11 +187,29 @@ async function main() {
       value: { maxBedroomsSimultaneous: 3, oneFewerThanTotal: true },
       sourceUrl: "https://www.toronto.ca/legdocs/municode/1184_547.pdf",
     },
+    // MAT: dated rates — temporary 8.5% Jun 1 2025–Jul 31 2026 (City Good Operator Guide)
     {
       ruleType: "mat_rate",
       unitType: "all",
       value: { rate: 0.06 },
-      sourceUrl: "https://www.toronto.ca/services-payments/property-taxes-utilities/municipal-accommodation-tax-mat/",
+      sourceUrl:
+        "https://www.toronto.ca/services-payments/property-taxes-utilities/municipal-accommodation-tax-mat/",
+    },
+    {
+      ruleType: "mat_rate",
+      unitType: "all",
+      value: { rate: 0.085 },
+      effectiveDate: new Date("2025-06-01T00:00:00Z"),
+      sourceUrl:
+        "https://www.toronto.ca/wp-content/uploads/2021/03/8d70-Good-Operator-Guide.pdf",
+    },
+    {
+      ruleType: "mat_rate",
+      unitType: "all",
+      value: { rate: 0.06 },
+      effectiveDate: new Date("2026-08-01T00:00:00Z"),
+      sourceUrl:
+        "https://www.toronto.ca/wp-content/uploads/2021/03/8d70-Good-Operator-Guide.pdf",
     },
     {
       ruleType: "registration_fee",
@@ -101,17 +232,30 @@ async function main() {
   ];
 
   for (const rule of rules) {
+    const ruleEffective = rule.effectiveDate ?? effectiveDate;
     await prisma.complianceRule.upsert({
       where: {
         municipalityId_ruleType_unitType_effectiveDate: {
           municipalityId: toronto.id,
           ruleType: rule.ruleType,
           unitType: rule.unitType,
-          effectiveDate,
+          effectiveDate: ruleEffective,
         },
       },
-      create: { municipalityId: toronto.id, effectiveDate, ...rule },
-      update: {},
+      create: {
+        municipalityId: toronto.id,
+        ruleType: rule.ruleType,
+        unitType: rule.unitType,
+        value: rule.value,
+        sourceUrl: rule.sourceUrl,
+        effectiveDate: ruleEffective,
+        verifiedAt: new Date("2026-07-19T00:00:00Z"),
+      },
+      update: {
+        value: rule.value,
+        sourceUrl: rule.sourceUrl,
+        verifiedAt: new Date("2026-07-19T00:00:00Z"),
+      },
     });
   }
 
@@ -125,11 +269,12 @@ async function main() {
     user = await prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
   }
   console.log(`  Demo host login: ${demoEmail} / nightcap-demo-2026`);
+  const starterTier = tiersByCode.get("starter")!;
   await prisma.subscription.upsert({
     where: { userId: user.id },
     create: {
       userId: user.id,
-      tier: "starter",
+      tierId: starterTier.id,
       propertyLimit: 5,
       pricePerPropertyCents: 500,
       startedAt: daysAgo(214),
@@ -366,13 +511,19 @@ async function main() {
     propertyId: string,
     periods: Array<{ start: string; end: string; revenue: number; status: "due" | "remitted"; remittedDaysAgo?: number }>
   ) {
-    const rate = 0.06;
     for (const p of periods) {
+      const periodStart = new Date(`${p.start}T00:00:00Z`);
+      const periodEnd = new Date(`${p.end}T00:00:00Z`);
+      // Use current Toronto MAT rate as of period start (8.5% during temporary window)
+      const rate = periodStart >= new Date("2025-06-01T00:00:00Z") &&
+        periodStart < new Date("2026-08-01T00:00:00Z")
+        ? 0.085
+        : 0.06;
       await prisma.matPeriod.create({
         data: {
           propertyId,
-          periodStart: new Date(`${p.start}T00:00:00Z`),
-          periodEnd: new Date(`${p.end}T00:00:00Z`),
+          periodStart,
+          periodEnd,
           grossRevenue: p.revenue,
           rateApplied: rate,
           amountOwed: Math.round(p.revenue * rate * 100) / 100,
