@@ -448,13 +448,35 @@ model PmsListingLink {
 // credentials); this models the tier itself so property-count limits and the
 // admin's "how long has this host been on this tier" view are real, with
 // tier changes made by an admin for now instead of self-serve checkout.
+//
+// PricingTier rows are the catalog — created/edited by platform admins in
+// /admin/tiers rather than being application constants. A Subscription
+// snapshots propertyLimit/price at assignment time so later catalog edits
+// never silently change what an existing host was promised; the admin
+// re-assigns the tier to refresh the snapshot.
 // ---------------------------------------------------------------------------
 
-enum SubscriptionTier {
-  free
-  starter
-  growth
-  portfolio
+model PricingTier {
+  id                    String   @id @default(cuid())
+  // Stable machine identifier, e.g. "free", "starter" — unique so seeds and
+  // integrations can reference tiers without knowing their cuid.
+  code                  String   @unique
+  name                  String
+  description           String?
+  // null = unlimited properties
+  propertyLimit         Int?
+  pricePerPropertyCents Int
+  active                Boolean  @default(true)
+  // Exactly one tier should be the default — assigned to new signups by
+  // ensureSubscription. Enforced in the admin action, not the database.
+  isDefault             Boolean  @default(false)
+  displayOrder          Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("pricing_tier")
 }
 
 enum SubscriptionStatus {
@@ -463,16 +485,20 @@ enum SubscriptionStatus {
 }
 
 model Subscription {
-  id                    String             @id @default(cuid())
-  userId                String             @unique
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tier                  SubscriptionTier   @default(free)
-  // null = unlimited (portfolio tier)
+  id     String      @id @default(cuid())
+  userId String      @unique
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tierId String
+  tier   PricingTier @relation(fields: [tierId], references: [id])
+
+  // Snapshotted from PricingTier at assignment time (see model comment above).
+  // null = unlimited.
   propertyLimit         Int?
   pricePerPropertyCents Int
   status                SubscriptionStatus @default(active)
   startedAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  @@index([tierId])
   @@map("subscription")
 }

@@ -9,6 +9,7 @@ import {
   AIRBNB_DEFAULT_MAPPING,
   VRBO_DEFAULT_MAPPING,
 } from "@/lib/csv-import";
+import { recomputeMatLedger } from "@/lib/mat-ledger";
 
 export interface CsvImportResult {
   totalRows: number;
@@ -32,11 +33,17 @@ export async function importTransactionCsv(propertyId: string, formData: FormDat
   // Airbnb/VRBO exports are account-wide, covering every listing under one
   // login (spec §5b) — filter to rows that plausibly belong to this property
   // by nickname/address substring match before date-matching against its bookings.
-  const relevantRows = rows.filter(
-    (r) =>
-      r.listing.toLowerCase().includes(property.nickname.toLowerCase()) ||
-      property.nickname.toLowerCase().includes(r.listing.toLowerCase())
-  );
+  const nick = property.nickname.toLowerCase();
+  const addr = property.address.toLowerCase();
+  const relevantRows = rows.filter((r) => {
+    const listing = r.listing.toLowerCase();
+    return (
+      listing.includes(nick) ||
+      nick.includes(listing) ||
+      (listing.length > 3 && addr.includes(listing)) ||
+      (listing.length > 3 && listing.includes(addr.slice(0, Math.min(addr.length, 24))))
+    );
+  });
 
   const bookings = await prisma.booking.findMany({
     where: { propertyId, cancelledAt: null, grossAmount: null },
@@ -65,6 +72,10 @@ export async function importTransactionCsv(propertyId: string, formData: FormDat
       payload: { platform, totalRows: rows.length, relevantRows: relevantRows.length, matched },
     },
   });
+
+  const year = new Date().getUTCFullYear();
+  await recomputeMatLedger(propertyId, year);
+  await recomputeMatLedger(propertyId, year - 1);
 
   revalidatePath(`/properties/${propertyId}`);
 

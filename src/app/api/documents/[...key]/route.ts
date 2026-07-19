@@ -6,7 +6,8 @@ import { LocalDocumentStorage, verifyLocalDocumentToken } from "@/lib/storage/lo
  * §12) — this route is the dev-mode stand-in for an S3 presigned URL. It
  * only checks the signature/expiry, not the caller's session, because by the
  * time a URL reaches here the ownership check already happened once, when
- * the signed URL was minted (see app/actions/documents.ts) — the signature
+ * the signed URL was minted (see getDocumentViewUrl in
+ * app/actions/property-detail.ts) — the signature
  * itself is the access control from that point on, same as a real presigned
  * URL.
  */

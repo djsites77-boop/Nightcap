@@ -25,7 +25,7 @@ export class LocalDocumentStorage implements DocumentStorage {
     return resolved;
   }
 
-  async put(key: string, data: Buffer): Promise<void> {
+  async put(key: string, data: Buffer, _mimeType?: string): Promise<void> {
     const filePath = this.resolvePath(key);
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, data);

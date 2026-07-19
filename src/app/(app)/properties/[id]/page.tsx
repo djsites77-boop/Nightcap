@@ -14,6 +14,15 @@ import { RetrySyncButton } from "@/components/property-detail/retry-sync-button"
 import { InspectionCheckbox } from "@/components/property-detail/inspection-checkbox";
 import { ViewDocumentButton } from "@/components/property-detail/view-document-button";
 import { CsvImportForm } from "@/components/property-detail/csv-import-form";
+import {
+  BookingRevenueForm,
+  DocumentUploadForm,
+  ManualBookingForm,
+  SyncNowButton,
+} from "@/components/property-detail/host-actions";
+import { ensureMatPeriods, recomputeMatLedger } from "@/lib/mat-ledger";
+import { ensureInspectionChecklist } from "@/lib/inspection";
+import { resolveEffectiveRule, type ComplianceRuleRow } from "@/lib/compliance/rules";
 
 function fmtMoney(n: number): string {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -26,7 +35,18 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   const session = await requireSession();
 
-  const property = await prisma.property.findUnique({
+  const ownership = await prisma.property.findUnique({
+    where: { id },
+    select: { userId: true, municipalityId: true, unitType: true },
+  });
+  if (!ownership || ownership.userId !== session.user.id) notFound();
+
+  const year = new Date().getUTCFullYear();
+  await ensureInspectionChecklist(id);
+  await ensureMatPeriods(id, year);
+  const { boundaryCrossingBookingIds } = await recomputeMatLedger(id, year);
+
+  const property = await prisma.property.findUniqueOrThrow({
     where: { id },
     include: {
       municipality: true,
@@ -37,10 +57,29 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       documents: { orderBy: { uploadedAt: "desc" } },
     },
   });
-  if (!property || property.userId !== session.user.id) notFound();
 
   const view = await getPropertyStatusView(id);
   const erroredConnection = property.calendarConnections.find((c) => c.syncStatus === "error");
+
+  const occupancyRules = await prisma.complianceRule.findMany({
+    where: { municipalityId: property.municipalityId, ruleType: "occupancy_limit" },
+  });
+  const occupancy = resolveEffectiveRule<{ adultsPerBedroom: number }>(
+    occupancyRules.map(
+      (r): ComplianceRuleRow => ({
+        ruleType: r.ruleType,
+        unitType: r.unitType,
+        value: r.value,
+        effectiveDate: r.effectiveDate,
+      })
+    ),
+    { ruleType: "occupancy_limit", unitType: property.unitType, asOf: new Date() }
+  );
+  const adultsPerBedroom = occupancy?.value.adultsPerBedroom ?? null;
+  const boundarySet = new Set(boundaryCrossingBookingIds);
+  const activeMatRate =
+    property.matPeriods.find((p) => p.status === "due")?.rateApplied ??
+    property.matPeriods.at(-1)?.rateApplied;
 
   return (
     <div>
@@ -145,8 +184,12 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-3">
                   <Advisory>
-                    <b>Occupancy (max 2 adults/bedroom):</b> not tracked — iCal sync provides dates only, no
-                    guest count. Connect a Hospitable or Guesty account to enable this check automatically.
+                    <b>
+                      Occupancy
+                      {adultsPerBedroom != null ? ` (max ${adultsPerBedroom} adults/bedroom)` : ""}:
+                    </b>{" "}
+                    not tracked — iCal sync provides dates only, no guest count. Connect a Hospitable
+                    or Guesty account to enable this check automatically.
                   </Advisory>
                   <Advisory>
                     Any booking spanning a calendar-year or MAT-period boundary (e.g. a New Year&apos;s stay)
@@ -156,8 +199,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <CardTitle>Calendar sync</CardTitle>
+                  <SyncNowButton propertyId={property.id} />
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-3">
                   {property.calendarConnections.length === 0 ? (
@@ -179,7 +223,12 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <TabsContent value="mat" className="mt-5">
           <Card>
             <CardHeader>
-              <CardTitle>MAT ledger — 6% of gross revenue</CardTitle>
+              <CardTitle>
+                MAT ledger
+                {activeMatRate != null
+                  ? ` — ${(Number(activeMatRate) * 100).toFixed(1)}% of gross revenue`
+                  : ""}
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-3">
               {property.matPeriods.length === 0 ? (
@@ -256,8 +305,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 ))}
               </div>
               <Advisory className="mt-4">
-                Occupancy posting is tracked here as a physical-posting requirement; the 2-adults/bedroom
-                occupancy <em>limit</em> itself is informational-only — see Overview.
+                Occupancy posting is tracked here as a physical-posting requirement; the
+                {adultsPerBedroom != null ? ` ${adultsPerBedroom}-adults/bedroom` : ""} occupancy{" "}
+                <em>limit</em> itself is informational-only — see Overview.
               </Advisory>
             </CardContent>
           </Card>
@@ -287,6 +337,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   ))}
                 </div>
               )}
+              <DocumentUploadForm propertyId={property.id} />
               <div className="mt-4 flex items-start gap-2 text-xs text-subtle-foreground">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
                 <span>Served via short-lived signed URLs from private storage — not publicly accessible links.</span>
@@ -301,6 +352,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               <CardTitle>Synced bookings</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 pt-3">
+              <ManualBookingForm propertyId={property.id} />
               <CsvImportForm propertyId={property.id} />
               {property.bookings.length === 0 ? (
                 <p className="text-sm text-subtle-foreground">No bookings yet.</p>
@@ -319,13 +371,23 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   <TableBody>
                     {property.bookings.map((b) => (
                       <TableRow key={b.id}>
-                        <TableCell className="font-mono tabular-nums">{fmtDate(b.checkIn)}</TableCell>
+                        <TableCell className="font-mono tabular-nums">
+                          {fmtDate(b.checkIn)}
+                          {boundarySet.has(b.id) ? (
+                            <div className="mt-1 text-[11px] text-status-warning">
+                              Crosses MAT period — review proration
+                            </div>
+                          ) : null}
+                        </TableCell>
                         <TableCell className="font-mono tabular-nums">{fmtDate(b.checkOut)}</TableCell>
                         <TableCell className="text-right font-mono tabular-nums">{b.nights}</TableCell>
                         <TableCell className="capitalize">{b.platform}</TableCell>
                         <TableCell>{b.source.replace("_", " ")}</TableCell>
-                        <TableCell className="text-right font-mono tabular-nums">
-                          {b.grossAmount ? fmtMoney(Number(b.grossAmount)) : "—"}
+                        <TableCell className="text-right">
+                          <BookingRevenueForm
+                            bookingId={b.id}
+                            grossAmount={b.grossAmount != null ? Number(b.grossAmount) : null}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}

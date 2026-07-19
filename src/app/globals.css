@@ -3,14 +3,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Nightcap design tokens.
- * Ground: cool paper / true-night navy (not a generic gray, not the
- * warm-cream-plus-serif combo). Single accent: a deep teal, chosen precisely
- * because it sits far from the status trio's hues (green/orange/red) so it
- * never gets mistaken for a compliance signal. Status colors are fixed and
- * mode-invariant (validated for contrast on both surfaces) — see
- * NIGHTCAP_BUILD_SPEC.md and design/nightcap-prototype.html for the original
- * palette work this carries forward.
+ * Nightcap design tokens — civic ledger SaaS.
+ * Cool paper / true-night navy. Deep teal accent (far from status green/
+ * orange/red). See design-system/nightcap/MASTER.md (ui-ux-pro-max curated).
  */
 :root {
   --background: #f5f7fa;
@@ -41,6 +36,11 @@
   --rail-foreground-active: #ffffff;
 
   --radius: 0.75rem;
+  --shadow-card: 0 1px 2px rgba(18, 23, 43, 0.04), 0 1px 3px rgba(18, 23, 43, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(18, 23, 43, 0.08), 0 1px 3px rgba(18, 23, 43, 0.04);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration: 220ms;
 }
 
 .dark {
@@ -70,6 +70,9 @@
   --rail-surface: #0f1526;
   --rail-foreground: #7c86a0;
   --rail-foreground-active: #ffffff;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
 @theme inline {
@@ -121,10 +124,86 @@
     background: var(--accent-soft);
     color: var(--accent-strong);
   }
+  /* Visible focus for keyboard nav (WCAG) — never remove */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  a,
+  button {
+    cursor: pointer;
+  }
 }
 
 @layer utilities {
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Soft paper atmosphere behind app content */
+  .bg-app-atmosphere {
+    background:
+      radial-gradient(900px 480px at 100% -10%, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent 55%),
+      radial-gradient(700px 400px at -5% 100%, color-mix(in srgb, var(--surface-alt) 80%, transparent), transparent 50%),
+      var(--background);
+  }
+
+  .animate-page-in {
+    animation: page-in var(--duration) var(--ease-out) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in var(--duration) var(--ease-out) both;
+  }
+
+  .stagger-1 {
+    animation-delay: 40ms;
+  }
+  .stagger-2 {
+    animation-delay: 80ms;
+  }
+  .stagger-3 {
+    animation-delay: 120ms;
+  }
+  .stagger-4 {
+    animation-delay: 160ms;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-fade-in {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
   }
 }

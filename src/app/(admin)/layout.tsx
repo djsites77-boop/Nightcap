@@ -7,7 +7,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await requireAdmin();
 
   return (
-    <AppShell userName={session.user.name} nav={<AdminNavLinks />} badge={<Badge variant="neutral" className="ml-1">Admin</Badge>}>
+    <AppShell
+      userName={session.user.name}
+      nav={<AdminNavLinks />}
+      badge={
+        <Badge
+          variant="neutral"
+          dot={false}
+          className="ml-1 border border-white/15 bg-white/10 text-[10px] text-white"
+        >
+          Admin
+        </Badge>
+      }
+    >
       {children}
     </AppShell>
   );

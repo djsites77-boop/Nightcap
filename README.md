@@ -67,7 +67,8 @@ pnpm dev                # http://localhost:3500
 
 The host account has 4 seeded Toronto properties tuned to hit every compliance status (OK, WARNING,
 RISK) and a sync-error state, so the dashboard has something real to look at immediately. The admin
-account can manage users/tiers and jurisdiction compliance rules at `/admin`.
+account can manage users, create tiers & pricing, configure jurisdiction tax rates, and edit
+compliance rules at `/admin`.
 
 ## Scripts
 
@@ -80,6 +81,7 @@ account can manage users/tiers and jurisdiction compliance rules at `/admin`.
 | `pnpm db:seed` | Seed demo municipalities, rules, users, properties |
 | `pnpm db:studio` | Prisma Studio (browse the DB) |
 | `pnpm ical:sync` | Run the iCal polling sync once, for all connections (self-hosted cron target) |
+| `pnpm reminders` | Run renewal / night-cap / MAT-closing reminder job (logs without SMTP) |
 
 ## Environment variables
 
@@ -109,13 +111,21 @@ Flagged here rather than left to discover:
 
 - **No payment collection.** Subscription tiers (`Free`/`Starter`/`Growth`/`Portfolio`) are modeled
   and enforced (property-count limits, admin-set tier), but there's no Stripe/checkout integration —
-  tier changes are admin-only for now (`/admin/users`, `setUserTier` in `app/actions/admin.ts`). Wiring
+  tier changes are admin-only for now (`/admin/users`, `setUserTier`). The live pricing catalog is
+  editable in `/admin/tiers` (create/edit/deactivate tiers, set the signup default). Jurisdiction
+  accommodation tax rates for Canadian municipalities are seeded and editable in `/admin/tax-rates`
+  — each property's MAT ledger resolves its rate from its municipality's dated `mat_rate` rules.
   up self-serve billing means adding Stripe Checkout + webhooks that call the same function.
-- **No transactional email.** Registration renewal/MAT-due reminders from the spec's MVP scope
-  (§10) aren't sent — there's no email provider configured.
+- **Transactional email delivery.** Reminder *logic* for renewal &lt;30 days, cap &gt;85%, and MAT period
+  closing runs via `pnpm reminders` / `POST /api/cron/reminders` (Bearer `CRON_SECRET`), but without an
+  email provider the job **logs** messages instead of sending. Wire SMTP/Resend into
+  `src/lib/reminders.ts` when ready.
 - **Address-based jurisdiction "auto-suggest"** on Add Property is a simple name-match against
   active municipalities, not real geocoding — the explicit picker is still the source of truth.
-- **Hospitable/Guesty and Anthropic integrations** need real credentials, as above.
+- **Hospitable/Guesty** — OAuth connect stores encrypted tokens; **reservation pull / listing map is
+  not implemented yet** (Settings copy notes auto-revenue as the intended next step once credentials
+  work). Anthropic rule-suggest needs `ANTHROPIC_API_KEY`.
+- **PMS occupancy enforcement** remains informational until guest counts arrive from a PMS.
 
 ## Architecture notes worth knowing before extending this
 

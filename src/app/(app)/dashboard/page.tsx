@@ -3,8 +3,11 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { getPropertyStatusView } from "@/lib/property-status";
 import { PropertyCard } from "@/components/property-card";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { KpiStat } from "@/components/ui/kpi-stat";
+import { Plus } from "lucide-react";
 
 function fmtMoney(cents: number): string {
   return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
@@ -29,89 +32,83 @@ export default async function DashboardPage() {
     .filter((d): d is number => d !== null)
     .sort((a, b) => a - b)[0];
 
+  const attentionTone =
+    riskCount > 0 ? "risk" : warningCount > 0 ? "warning" : ("ok" as const);
+
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {properties.length} {properties.length === 1 ? "property" : "properties"} · Toronto
-          </p>
-        </div>
-        <Button size="sm" asChild>
-          <Link href="/properties/new">+ Add property</Link>
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Portfolio"
+        title="Dashboard"
+        description={
+          <>
+            {properties.length} {properties.length === 1 ? "property" : "properties"} tracked for
+            compliance — night caps, MAT, and registration renewals at a glance.
+          </>
+        }
+        actions={
+          <Button size="sm" asChild>
+            <Link href="/properties/new">
+              <Plus className="size-3.5" />
+              Add property
+            </Link>
+          </Button>
+        }
+      />
 
       {properties.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
-            <p className="font-display text-lg font-semibold text-foreground">No properties yet</p>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Add your first Toronto listing to start tracking its night cap, MAT ledger, and registration
+        <Card className="animate-page-in">
+          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
+            <p className="font-display text-xl font-semibold text-foreground">No properties yet</p>
+            <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Add your first listing to start tracking its night cap, MAT ledger, and registration
               renewal.
             </p>
             <Button asChild className="mt-2">
-              <Link href="/properties/new">+ Add property</Link>
+              <Link href="/properties/new">
+                <Plus className="size-3.5" />
+                Add property
+              </Link>
             </Button>
           </CardContent>
         </Card>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Properties</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="font-mono text-2xl font-semibold tabular-nums">{properties.length}</div>
-                <div className="mt-0.5 text-xs text-subtle-foreground">
-                  {entireHomes} entire-home · {properties.length - entireHomes} partial-unit
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Needs attention</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div
-                  className={`font-mono text-2xl font-semibold tabular-nums ${
-                    riskCount ? "text-status-risk" : warningCount ? "text-status-warning" : ""
-                  }`}
-                >
-                  {riskCount + warningCount}
-                </div>
-                <div className="mt-0.5 text-xs text-subtle-foreground">
-                  {riskCount} risk · {warningCount} warning
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>MAT due</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="font-mono text-2xl font-semibold tabular-nums">
-                  {matDueTotalCents > 0 ? fmtMoney(matDueTotalCents) : "$0"}
-                </div>
-                <div className="mt-0.5 text-xs text-subtle-foreground">across all properties</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Next renewal</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="font-mono text-2xl font-semibold tabular-nums">
-                  {nextRenewal !== undefined ? `${nextRenewal}d` : "—"}
-                </div>
-                <div className="mt-0.5 text-xs text-subtle-foreground">soonest registration expiry</div>
-              </CardContent>
-            </Card>
+          <div className="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiStat
+              label="Properties"
+              value={properties.length}
+              hint={`${entireHomes} entire-home · ${properties.length - entireHomes} partial-unit`}
+              stagger={1}
+            />
+            <KpiStat
+              label="Needs attention"
+              value={riskCount + warningCount}
+              hint={`${riskCount} risk · ${warningCount} warning`}
+              tone={attentionTone}
+              stagger={2}
+            />
+            <KpiStat
+              label="MAT due"
+              value={matDueTotalCents > 0 ? fmtMoney(matDueTotalCents) : "$0"}
+              hint="across all properties"
+              tone={matDueTotalCents > 0 ? "warning" : "default"}
+              stagger={3}
+            />
+            <KpiStat
+              label="Next renewal"
+              value={nextRenewal !== undefined ? `${nextRenewal}d` : "—"}
+              hint="soonest registration expiry"
+              tone={nextRenewal !== undefined && nextRenewal <= 14 ? "risk" : "default"}
+              stagger={4}
+            />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-lg font-semibold text-foreground">Properties</h2>
+            <p className="text-xs text-subtle-foreground">Sorted by date added</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             {rows.map(({ property, view }) => (
               <PropertyCard
                 key={property.id}

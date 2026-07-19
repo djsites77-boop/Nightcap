@@ -55,7 +55,7 @@ launch — bylaws are amended]**:
 | Annual night cap, entire-home | 180 nights/calendar year (Jan 1–Dec 31) | [VERIFY] |
 | Partial-unit / room rentals | No annual cap; max 3 bedrooms rented simultaneously, one fewer than total bedroom count | [VERIFY] |
 | Principal residence requirement | STR must be host's principal residence | [VERIFY] |
-| Municipal Accommodation Tax (MAT) | 6% of booking revenue | [VERIFY] |
+| Municipal Accommodation Tax (MAT) | 8.5% Jun 1 2025–Jul 31 2026 (else 6%) | Verified 2026-07-19 vs City Good Operator Guide; seeded as dated ComplianceRule rows |
 | Registration | Required per unit; non-refundable annual fee (~$53.22 at spec time) | [VERIFY, fee changes] |
 | Occupancy | Max 2 adults per bedroom | [VERIFY] — **and see §6b: not enforceable in MVP regardless of the figure's accuracy, since no guest-count data source exists yet** |
 | Record retention | Booking logs retained 3 years | [VERIFY] |
