@@ -11,7 +11,9 @@ param(
     [switch]$Wipe
 )
 
-$ErrorActionPreference = "Stop"
+# No $ErrorActionPreference = "Stop" here on purpose - Docker writes routine
+# status text to stderr, which Windows PowerShell 5.1 would otherwise treat
+# as a fatal error and abort the script even on success.
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
@@ -21,4 +23,7 @@ if ($Wipe) {
 } else {
     Write-Host "Stopping Postgres (data preserved)..." -ForegroundColor Cyan
     docker compose stop db
+}
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "docker compose reported a non-zero exit code ($LASTEXITCODE) - check the output above." -ForegroundColor Yellow
 }

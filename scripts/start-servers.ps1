@@ -22,7 +22,12 @@ param(
     [switch]$WithStudio
 )
 
-$ErrorActionPreference = "Stop"
+# Deliberately NOT $ErrorActionPreference = "Stop": Docker/git/pnpm routinely
+# write normal status text to stderr, and with that preference set, Windows
+# PowerShell 5.1 treats any stderr line from a native command as a fatal
+# error and aborts the whole script even though the command succeeded. Every
+# native call below is followed by an explicit $LASTEXITCODE check instead,
+# which reflects the command's *actual* success/failure.
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
