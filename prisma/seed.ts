@@ -16,7 +16,7 @@ const prisma = new PrismaClient({ adapter });
 const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   secret: process.env.BETTER_AUTH_SECRET,
-  emailAndPassword: { enabled: true, requireEmailVerification: false },
+  emailAndPassword: { enabled: true, requireEmailVerification: false, minPasswordLength: 1 },
 });
 
 function daysFromNow(days: number): Date {
@@ -264,11 +264,11 @@ async function main() {
   let user = await prisma.user.findUnique({ where: { email: demoEmail } });
   if (!user) {
     const result = await auth.api.signUpEmail({
-      body: { name: "Dana Okafor", email: demoEmail, password: "nightcap-demo-2026" },
+      body: { name: "Dana Okafor", email: demoEmail, password: "1" },
     });
     user = await prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
   }
-  console.log(`  Demo host login: ${demoEmail} / nightcap-demo-2026`);
+  console.log(`  Demo host login: ${demoEmail} / 1`);
   const starterTier = tiersByCode.get("starter")!;
   await prisma.subscription.upsert({
     where: { userId: user.id },
@@ -287,12 +287,12 @@ async function main() {
   let admin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!admin) {
     const result = await auth.api.signUpEmail({
-      body: { name: "Nightcap Admin", email: adminEmail, password: "nightcap-admin-2026" },
+      body: { name: "Nightcap Admin", email: adminEmail, password: "1" },
     });
     admin = await prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
   }
   await prisma.user.update({ where: { id: admin.id }, data: { role: "admin" } });
-  console.log(`  Admin login: ${adminEmail} / nightcap-admin-2026`);
+  console.log(`  Admin login: ${adminEmail} / 1`);
 
   console.log("Seeding properties...");
   const storage = getDocumentStorage();

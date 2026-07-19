@@ -12,6 +12,9 @@ export const auth = betterAuth({
     enabled: true,
     // MVP has no transactional email provider wired up yet — see README.
     requireEmailVerification: false,
+    // Lowered from Better Auth's default (8) so the seeded demo accounts can
+    // use a trivial local-dev password — never do this for a real deployment.
+    minPasswordLength: 1,
   },
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days

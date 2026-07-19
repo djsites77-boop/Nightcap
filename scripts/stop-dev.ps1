@@ -17,13 +17,22 @@ param(
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
+function Invoke-Native {
+    # Prints native-command output as plain text instead of PowerShell's red
+    # "NativeCommandError" formatting for stderr, which Docker uses for
+    # routine status text even on success.
+    param([Parameter(Mandatory)][ScriptBlock]$Command)
+    & $Command 2>&1 | ForEach-Object { Write-Host $_ }
+    return $LASTEXITCODE
+}
+
 if ($Wipe) {
     Write-Host "Stopping Postgres and deleting its data volume..." -ForegroundColor Yellow
-    docker compose down -v
+    $exitCode = Invoke-Native { docker compose down -v }
 } else {
     Write-Host "Stopping Postgres (data preserved)..." -ForegroundColor Cyan
-    docker compose stop db
+    $exitCode = Invoke-Native { docker compose stop db }
 }
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "docker compose reported a non-zero exit code ($LASTEXITCODE) - check the output above." -ForegroundColor Yellow
+if ($exitCode -ne 0) {
+    Write-Host "docker compose reported a non-zero exit code ($exitCode) - check the output above." -ForegroundColor Yellow
 }

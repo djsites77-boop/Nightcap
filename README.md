@@ -62,8 +62,8 @@ pnpm dev                # http://localhost:3500
 
 | Role | Email | Password |
 |---|---|---|
-| Host | `dana@queensthosting.ca` | `nightcap-demo-2026` |
-| Platform admin | `admin@nightcap.app` | `nightcap-admin-2026` |
+| Host | `dana@queensthosting.ca` | `1` |
+| Platform admin | `admin@nightcap.app` | `1` |
 
 The host account has 4 seeded Toronto properties tuned to hit every compliance status (OK, WARNING,
 RISK) and a sync-error state, so the dashboard has something real to look at immediately. The admin

@@ -32,6 +32,16 @@ function Assert-Command($name, $hint) {
     }
 }
 
+function Invoke-Native {
+    # Runs a native command and prints its output as plain text instead of
+    # letting PowerShell render stderr lines in red "NativeCommandError"
+    # blocks - Docker/pnpm/Prisma all write routine status text to stderr,
+    # which looks alarming even on success. Returns the real exit code.
+    param([Parameter(Mandatory)][ScriptBlock]$Command)
+    & $Command 2>&1 | ForEach-Object { Write-Host $_ }
+    return $LASTEXITCODE
+}
+
 Write-Host "== Nightcap dev startup ==" -ForegroundColor Cyan
 
 Assert-Command "docker" "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
@@ -43,12 +53,10 @@ if (-not (Test-Path ".env")) {
 }
 
 Write-Host "-- Installing dependencies (pnpm install) --" -ForegroundColor Cyan
-pnpm install
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { pnpm install }) -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "-- Starting Postgres (docker compose) on host port 4500 --" -ForegroundColor Cyan
-docker compose up -d db
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { docker compose up -d db }) -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "-- Waiting for Postgres to be ready --" -ForegroundColor Cyan
 $maxAttempts = 30
@@ -66,13 +74,11 @@ while ($true) {
 Write-Host "   Postgres is up." -ForegroundColor Green
 
 Write-Host "-- Applying database migrations --" -ForegroundColor Cyan
-pnpm exec prisma migrate deploy
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { pnpm exec prisma migrate deploy }) -ne 0) { exit $LASTEXITCODE }
 
 if ($Seed) {
     Write-Host "-- Seeding demo data --" -ForegroundColor Cyan
-    pnpm db:seed
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if ((Invoke-Native { pnpm db:seed }) -ne 0) { exit $LASTEXITCODE }
 }
 
 Write-Host "-- Starting the app on http://localhost:3500 --" -ForegroundColor Cyan
