@@ -47,7 +47,7 @@ Assert-Command "docker" "Install Docker Desktop: https://www.docker.com/products
 Assert-Command "pnpm" "Install pnpm: https://pnpm.io/installation (or: npm install -g pnpm)"
 
 if (-not (Test-Path ".env")) {
-    Write-Host "No .env found — copying .env.example. Edit it (especially secrets) before real use." -ForegroundColor Yellow
+    Write-Host "No .env found - copying .env.example. Edit it (especially secrets) before real use." -ForegroundColor Yellow
     Copy-Item ".env.example" ".env"
 }
 

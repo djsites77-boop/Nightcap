@@ -33,7 +33,7 @@ Assert-Command "docker" "Install Docker Desktop: https://www.docker.com/products
 Assert-Command "pnpm" "Install pnpm: https://pnpm.io/installation (or: npm install -g pnpm)"
 
 if (-not (Test-Path ".env")) {
-    Write-Host "No .env found — copying .env.example. Edit it (especially secrets) before real use." -ForegroundColor Yellow
+    Write-Host "No .env found - copying .env.example. Edit it (especially secrets) before real use." -ForegroundColor Yellow
     Copy-Item ".env.example" ".env"
 }
 
@@ -72,5 +72,5 @@ if ($Seed) {
 }
 
 Write-Host "-- Starting the app on http://localhost:3500 --" -ForegroundColor Cyan
-Write-Host "   (Ctrl+C to stop; Postgres keeps running — use scripts\stop-dev.ps1 to stop it too)" -ForegroundColor DarkGray
+Write-Host "   (Ctrl+C to stop; Postgres keeps running - use scripts\stop-dev.ps1 to stop it too)" -ForegroundColor DarkGray
 pnpm dev
