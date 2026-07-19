@@ -30,6 +30,15 @@ git checkout claude/code-review-vej32n
 .\scripts\start-dev.ps1 -Seed
 ```
 
+Prefer everything running in its own visible window (Postgres logs, the Next.js app, optionally
+Prisma Studio) instead of one shared console? Use `start-servers.ps1` instead — same setup steps,
+but each server gets its own named window (`Nightcap - Postgres`, `Nightcap - Next.js App`, ...):
+
+```powershell
+.\scripts\start-servers.ps1 -Seed          # add -WithStudio for a Prisma Studio window too
+.\scripts\stop-servers.ps1                 # closes those windows and stops Postgres
+```
+
 This copies `.env.example` to `.env` if missing, installs dependencies, starts Postgres in Docker on
 host port **4500**, runs migrations, seeds demo data, and starts the app on **http://localhost:3500**.
 
