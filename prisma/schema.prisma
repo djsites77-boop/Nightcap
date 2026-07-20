@@ -359,6 +359,18 @@ model InspectionItem {
   completedAt DateTime?
   completedBy String?
 
+  // Custom items a host adds themselves, beyond the 4 default safety items —
+  // need their own display label (formatItemKey() only makes sense for the
+  // fixed default keys) and can carry a due date so the compliance status
+  // can flag one that's gone overdue, not just "not yet confirmed."
+  isCustom Boolean   @default(false)
+  label    String?
+  dueDate  DateTime?
+  // Whether this item counts toward the property's compliance status at
+  // all. Default items always do; a custom item the host adds just to keep
+  // a personal checklist can opt out.
+  required Boolean   @default(true)
+
   @@unique([propertyId, itemKey])
   @@map("inspection_item")
 }

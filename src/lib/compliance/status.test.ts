@@ -48,6 +48,67 @@ describe("computeComplianceStatus", () => {
   });
 });
 
+describe("computeComplianceStatus — inspection items", () => {
+  const base = { unitType: "entire_home" as const, nightsUsed: 10, cap: 180, daysToRenewal: 90 };
+
+  it("stays OK when every required item is completed", () => {
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: true, required: true, dueDate: null }],
+      })
+    ).toBe("ok");
+  });
+
+  it("is WARNING for a required item with no due date that's never been confirmed", () => {
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: false, required: true, dueDate: null }],
+      })
+    ).toBe("warning");
+  });
+
+  it("is RISK for a required item whose due date has already passed", () => {
+    const overdue = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: false, required: true, dueDate: overdue }],
+      })
+    ).toBe("risk");
+  });
+
+  it("is WARNING for a required item due soon but not yet overdue", () => {
+    const dueSoon = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: false, required: true, dueDate: dueSoon }],
+      })
+    ).toBe("warning");
+  });
+
+  it("ignores an incomplete item the host marked optional (required: false)", () => {
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: false, required: false, dueDate: null }],
+      })
+    ).toBe("ok");
+  });
+
+  it("ignores a far-future due date entirely", () => {
+    const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    expect(
+      computeComplianceStatus({
+        ...base,
+        inspectionItems: [{ completed: false, required: true, dueDate: farFuture }],
+      })
+    ).toBe("ok");
+  });
+});
+
 describe("daysBetween", () => {
   it("counts whole days regardless of time-of-day", () => {
     expect(daysBetween(new Date("2026-07-17T23:00:00Z"), new Date("2026-07-20T01:00:00Z"))).toBe(3);

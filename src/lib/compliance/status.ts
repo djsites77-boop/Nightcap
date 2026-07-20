@@ -17,6 +17,14 @@
 
 export type ComplianceStatus = "ok" | "warning" | "risk";
 
+/** The subset of InspectionItem fields the status computation actually needs. */
+export interface InspectionItemStatusInput {
+  completed: boolean;
+  required: boolean;
+  /** Null for the default safety items, which have no inherent deadline. */
+  dueDate: Date | null;
+}
+
 export interface StatusInput {
   unitType: "entire_home" | "partial_unit";
   nightsUsed: number;
@@ -24,10 +32,13 @@ export interface StatusInput {
   cap: number | null;
   /** Null when the property has no registration expiry on file yet. */
   daysToRenewal: number | null;
+  /** Defaults to []: a property with no inspection items exerts no pressure. */
+  inspectionItems?: InspectionItemStatusInput[];
   /** UX buffer thresholds — tunable config, not bylaw facts (spec §6). */
   warningNightsRatio?: number;
   riskRenewalDays?: number;
   warningRenewalDays?: number;
+  warningInspectionDueDays?: number;
 }
 
 export function computeComplianceStatus(input: StatusInput): ComplianceStatus {
@@ -36,9 +47,11 @@ export function computeComplianceStatus(input: StatusInput): ComplianceStatus {
     nightsUsed,
     cap,
     daysToRenewal,
+    inspectionItems = [],
     warningNightsRatio = 0.85,
     riskRenewalDays = 14,
     warningRenewalDays = 30,
+    warningInspectionDueDays = 14,
   } = input;
 
   const hasNightCap = unitType === "entire_home" && cap !== null && cap > 0;
@@ -48,8 +61,24 @@ export function computeComplianceStatus(input: StatusInput): ComplianceStatus {
   const renewalAtRisk = daysToRenewal !== null && daysToRenewal < riskRenewalDays;
   const renewalAtWarning = daysToRenewal !== null && daysToRenewal < warningRenewalDays;
 
-  if (nightsAtRisk || renewalAtRisk) return "risk";
-  if (nightsAtWarning || renewalAtWarning) return "warning";
+  const requiredIncomplete = inspectionItems.filter((i) => i.required && !i.completed);
+  // Overdue (a due date has passed) is treated as risk, same as a blown
+  // night cap or a near-expired registration — it's a real, live compliance
+  // gap, not just an unconfirmed checklist item.
+  const inspectionAtRisk = requiredIncomplete.some(
+    (i) => i.dueDate !== null && i.dueDate.getTime() < Date.now()
+  );
+  // Warning covers two different situations: a required item with no due
+  // date that's simply never been confirmed yet, or one with a due date
+  // that's coming up but hasn't passed.
+  const inspectionAtWarning = requiredIncomplete.some((i) => {
+    if (i.dueDate === null) return true;
+    const daysUntilDue = daysBetween(new Date(), i.dueDate);
+    return daysUntilDue >= 0 && daysUntilDue <= warningInspectionDueDays;
+  });
+
+  if (nightsAtRisk || renewalAtRisk || inspectionAtRisk) return "risk";
+  if (nightsAtWarning || renewalAtWarning || inspectionAtWarning) return "warning";
   return "ok";
 }
 

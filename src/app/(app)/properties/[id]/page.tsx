@@ -22,6 +22,10 @@ import {
 } from "@/components/property-detail/host-actions";
 import { ExpenseForm, DeleteExpenseButton, ExportExpensesCsvButton } from "@/components/property-detail/expense-form";
 import { InventoryAssetForm, InventoryAssetRowActions } from "@/components/property-detail/inventory-form";
+import {
+  CustomChecklistItemForm,
+  DeleteChecklistItemButton,
+} from "@/components/property-detail/custom-checklist-item-form";
 import { ensureMatPeriods, recomputeMatLedger } from "@/lib/mat-ledger";
 import { ensureInspectionChecklist } from "@/lib/inspection";
 import { resolveEffectiveRule, type ComplianceRuleRow } from "@/lib/compliance/rules";
@@ -55,7 +59,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       calendarConnections: true,
       bookings: { where: { cancelledAt: null }, orderBy: { checkIn: "asc" } },
       matPeriods: { orderBy: { periodStart: "asc" } },
-      inspectionItems: { orderBy: { itemKey: "asc" } },
+      inspectionItems: { orderBy: [{ isCustom: "asc" }, { itemKey: "asc" }] },
       documents: { orderBy: { uploadedAt: "desc" } },
       expenses: { orderBy: { incurredOn: "desc" } },
       inventoryAssets: { orderBy: { createdAt: "desc" } },
@@ -294,23 +298,50 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <CardHeader>
               <CardTitle>Inspection checklist</CardTitle>
             </CardHeader>
-            <CardContent className="pt-3">
+            <CardContent className="flex flex-col gap-4 pt-3">
               <div className="flex flex-col">
-                {property.inspectionItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 border-b border-border py-3 last:border-0">
-                    <InspectionCheckbox itemId={item.id} completed={item.completed} />
-                    <div>
-                      <div className="text-sm font-semibold text-foreground">
-                        {formatItemKey(item.itemKey)}
+                {property.inspectionItems.map((item) => {
+                  const label = item.isCustom ? (item.label ?? "Custom item") : formatItemKey(item.itemKey);
+                  const overdue = !item.completed && item.dueDate && item.dueDate.getTime() < Date.now();
+                  const dueSoon =
+                    !item.completed &&
+                    !overdue &&
+                    item.dueDate &&
+                    item.dueDate.getTime() - Date.now() <= 14 * 24 * 60 * 60 * 1000;
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-0"
+                    >
+                      <div className="flex items-center gap-3">
+                        <InspectionCheckbox itemId={item.id} completed={item.completed} />
+                        <div>
+                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            {label}
+                            {!item.required && (
+                              <span className="text-[10px] font-normal text-subtle-foreground">(optional)</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-subtle-foreground">
+                            {item.completed && item.completedAt
+                              ? `Confirmed ${fmtDate(item.completedAt)}`
+                              : item.dueDate
+                                ? `Due ${fmtDate(item.dueDate)}`
+                                : "Not yet confirmed"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-subtle-foreground">
-                        {item.completed && item.completedAt ? `Confirmed ${fmtDate(item.completedAt)}` : "Not yet confirmed"}
+                      <div className="flex items-center gap-2">
+                        {overdue && <Badge variant="risk">Overdue</Badge>}
+                        {dueSoon && <Badge variant="warning">Due soon</Badge>}
+                        {item.isCustom && <DeleteChecklistItemButton itemId={item.id} />}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <Advisory className="mt-4">
+              <CustomChecklistItemForm propertyId={property.id} />
+              <Advisory>
                 Occupancy posting is tracked here as a physical-posting requirement; the
                 {adultsPerBedroom != null ? ` ${adultsPerBedroom}-adults/bedroom` : ""} occupancy{" "}
                 <em>limit</em> itself is informational-only — see Overview.

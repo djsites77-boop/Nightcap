@@ -87,6 +87,52 @@ export async function toggleInspectionItem(itemId: string, completed: boolean) {
   revalidatePath(`/properties/${item.propertyId}`);
 }
 
+const createCustomInspectionItemSchema = z.object({
+  propertyId: z.string().min(1),
+  label: z.string().min(1).max(200),
+  dueDate: z.string().optional(),
+});
+
+/** A host's own checklist item, beyond the 4 default safety items — see InspectionItem.isCustom. */
+export async function createCustomInspectionItem(formData: FormData) {
+  const session = await requireSession();
+  const parsed = createCustomInspectionItemSchema.safeParse({
+    propertyId: formData.get("propertyId"),
+    label: formData.get("label"),
+    dueDate: formData.get("dueDate") || undefined,
+  });
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+
+  await assertOwnsProperty(parsed.data.propertyId, session.user.id);
+
+  // Native checkbox semantics: present in the FormData only when checked.
+  const required = formData.get("required") !== null;
+
+  const itemKey = `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  await prisma.inspectionItem.create({
+    data: {
+      propertyId: parsed.data.propertyId,
+      itemKey,
+      isCustom: true,
+      label: parsed.data.label,
+      required,
+      dueDate: parsed.data.dueDate ? new Date(`${parsed.data.dueDate}T00:00:00Z`) : null,
+    },
+  });
+
+  revalidatePath(`/properties/${parsed.data.propertyId}`);
+}
+
+export async function deleteCustomInspectionItem(itemId: string) {
+  const session = await requireSession();
+  const item = await prisma.inspectionItem.findUniqueOrThrow({ where: { id: itemId } });
+  await assertOwnsProperty(item.propertyId, session.user.id);
+  if (!item.isCustom) throw new Error("Only custom checklist items can be deleted.");
+
+  await prisma.inspectionItem.delete({ where: { id: itemId } });
+  revalidatePath(`/properties/${item.propertyId}`);
+}
+
 export async function getDocumentViewUrl(documentId: string): Promise<string> {
   const session = await requireSession();
   const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });

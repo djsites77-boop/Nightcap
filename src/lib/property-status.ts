@@ -19,6 +19,7 @@ export async function getPropertyStatusView(propertyId: string): Promise<Propert
     include: {
       nightTallies: { where: { calendarYear: new Date().getUTCFullYear() } },
       matPeriods: { where: { status: "due" } },
+      inspectionItems: true,
     },
   });
 
@@ -52,6 +53,11 @@ export async function getPropertyStatusView(propertyId: string): Promise<Propert
     nightsUsed: tally?.nightsUsed ?? 0,
     cap: tally?.cap ?? null,
     daysToRenewal,
+    inspectionItems: property.inspectionItems.map((i) => ({
+      completed: i.completed,
+      required: i.required,
+      dueDate: i.dueDate,
+    })),
   });
 
   return {
