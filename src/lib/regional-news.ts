@@ -1,17 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { XMLParser } from "fast-xml-parser";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * Regional STR news for the dashboard — "what's happening in my city that
- * could affect my listing." Uses Claude's server-side web_search tool
- * rather than a separate news API, since Nightcap already depends on
- * ANTHROPIC_API_KEY for AI-assisted rule extraction and receipt parsing.
- *
- * Unlike rule-extraction.ts and receipt-parsing.ts, this has no save-time
- * human review step — it's read-only news, not something that gets written
- * into ComplianceRule or Expense. The trust boundary is different: a wrong
- * headline is a bad dashboard widget, not a wrong tax number.
+ * could affect my listing." Pulled from Google News' public RSS search feed
+ * (no API key, no per-request charge, no AI involved) rather than a paid
+ * news API or an LLM search tool — the cost here needed to be flat/free,
+ * not usage-metered.
  */
 
 export interface RegionalNewsItem {
@@ -22,75 +18,76 @@ export interface RegionalNewsItem {
   summary: string;
 }
 
-const REPORT_NEWS_TOOL: Anthropic.Tool = {
-  name: "report_str_news",
-  description:
-    "Report the short-term-rental regulation/market news items found for this region. Call this exactly once, after searching.",
-  input_schema: {
-    type: "object",
-    properties: {
-      items: {
-        type: "array",
-        maxItems: 5,
-        items: {
-          type: "object",
-          properties: {
-            headline: { type: "string" },
-            source: { type: "string", description: "Publication name, e.g. \"CBC News\"" },
-            url: { type: "string" },
-            publishedOn: { type: ["string", "null"], description: "ISO 8601 date if known, else null" },
-            summary: { type: "string", description: "One or two sentences on why this matters to an STR host" },
-          },
-          required: ["headline", "source", "url", "summary"],
-        },
-      },
-    },
-    required: ["items"],
-  },
-};
+const MAX_ITEMS = 5;
 
-/** Live search — always hits the API. Callers should go through getCachedRegionalNews instead. */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface GoogleNewsItem {
+  title?: string;
+  link?: string;
+  pubDate?: string;
+  description?: string;
+  source?: { "#text"?: string } | string;
+}
+
+/** Pure parser — no network — so this can be unit-tested against a fixed sample. */
+export function parseGoogleNewsRss(xml: string): RegionalNewsItem[] {
+  const parser = new XMLParser({ ignoreAttributes: false });
+  const parsed = parser.parse(xml);
+  const rawItems: GoogleNewsItem | GoogleNewsItem[] | undefined = parsed?.rss?.channel?.item;
+  const items: GoogleNewsItem[] = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+
+  return items
+    .slice(0, MAX_ITEMS)
+    .map((item): RegionalNewsItem => {
+      const title = String(item.title ?? "").trim();
+      const lastDash = title.lastIndexOf(" - ");
+      const headline = lastDash > -1 ? title.slice(0, lastDash) : title;
+      const sourceField = item.source;
+      const source =
+        (typeof sourceField === "object" ? sourceField["#text"] : sourceField) ||
+        (lastDash > -1 ? title.slice(lastDash + 3) : "Google News");
+
+      return {
+        headline,
+        source: String(source),
+        url: String(item.link ?? ""),
+        publishedOn: item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 10) : null,
+        summary: stripHtml(String(item.description ?? "")).slice(0, 300),
+      };
+    })
+    .filter((item) => item.url && item.headline);
+}
+
+/** Live fetch — always hits the feed. Callers should go through getCachedRegionalNews instead. */
 export async function fetchRegionalStrNews(regionLabel: string): Promise<RegionalNewsItem[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return [];
+  const query = `"${regionLabel}" (short-term rental OR Airbnb OR VRBO) (bylaw OR regulation OR crackdown OR tax OR licence OR license)`;
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-CA&gl=CA&ceid=CA:en`;
 
-  const client = new Anthropic({ apiKey });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
-
-  const message = await client.messages.create({
-    model,
-    max_tokens: 2048,
-    tools: [
-      { type: "web_search_20260318", name: "web_search", max_uses: 4 },
-      REPORT_NEWS_TOOL,
-    ],
-    messages: [
-      {
-        role: "user",
-        content:
-          `Search for short-term-rental / Airbnb / VRBO regulation and market news from the last ~60 days ` +
-          `specific to ${regionLabel}. Focus on: new bylaws, night-cap or licensing rule changes, enforcement ` +
-          `crackdowns, and municipal accommodation tax changes. Once you've searched, call report_str_news ` +
-          `exactly once with up to 5 of the most relevant, most recent items you actually found — never invent ` +
-          `one. If nothing relevant turns up, call it with an empty items array.`,
-      },
-    ],
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; NightcapNewsBot/1.0)" },
   });
-
-  const toolUse = message.content.find(
-    (block): block is Anthropic.ToolUseBlock => block.type === "tool_use" && block.name === "report_str_news"
-  );
-  if (!toolUse) return [];
-
-  const input = toolUse.input as { items?: RegionalNewsItem[] };
-  return input.items ?? [];
+  if (!res.ok) throw new Error(`Google News feed returned ${res.status}`);
+  const xml = await res.text();
+  return parseGoogleNewsRss(xml);
 }
 
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Cached read for the dashboard — refreshes at most once per day per
- * municipality rather than searching on every page load. Falls back to
+ * municipality rather than fetching on every page load. Falls back to
  * whatever's cached (even if stale) if a refresh attempt fails, and to an
  * empty list if there's no cache yet and the refresh also fails — a broken
  * news widget should never break the dashboard.
