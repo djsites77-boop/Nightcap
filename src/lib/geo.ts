@@ -18,7 +18,7 @@ export async function geocodeAddress(address: string): Promise<Coords | null> {
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "NightcapSTR/0.1 (host compliance tracker; local-dev)",
+        "User-Agent": "NitecapSTR/0.1 (host compliance tracker; local-dev)",
         Accept: "application/json",
       },
       // Nominatim asks for max 1 req/sec — fine for create-property cadence

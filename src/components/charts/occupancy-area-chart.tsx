@@ -22,7 +22,7 @@ export function OccupancyAreaChart({ data }: { data: MonthPoint[] }) {
   }
 
   return (
-    <div className="h-52 w-full sm:h-56">
+    <div className="h-48 w-full min-w-0 sm:h-56">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
           <defs>

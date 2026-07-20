@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -31,7 +30,6 @@ export function ConnectCalendarForm({
   existing: Connection[];
   propertyId: string;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -95,24 +93,15 @@ export function ConnectCalendarForm({
 
         {error && <p className="mb-3 text-sm text-status-risk">{error}</p>}
 
-        <div className="flex gap-2.5">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => router.push(`/properties/${propertyId}/registration`)}
-          >
-            Skip for now
+        <div className="flex flex-col gap-2.5 sm:flex-row">
+          <Button type="button" variant="ghost" className="sm:flex-1" asChild>
+            <Link href={`/properties/${propertyId}/registration`}>Skip for now</Link>
           </Button>
-          <Button type="submit" className="flex-1" disabled={pending}>
+          <Button type="submit" className="sm:flex-1" disabled={pending}>
             {pending ? "Connecting…" : "Continue →"}
           </Button>
         </div>
       </form>
-      <p className="mt-4 text-center text-sm">
-        <Link href="/properties/new" className="font-semibold text-accent">
-          ← Back
-        </Link>
-      </p>
     </div>
   );
 }

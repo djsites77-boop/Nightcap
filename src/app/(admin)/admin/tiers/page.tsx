@@ -13,7 +13,7 @@ export default async function AdminTiersPage() {
       <PageHeader
         eyebrow="Billing"
         title="Tiers & pricing"
-        description="Live catalog — hosts are limited (and eventually billed) per property by their tier. Edits don’t reprice existing subscribers until you re-assign them under Users."
+        description="Live catalog — flat monthly tiers with listing caps. Edits don’t reprice existing subscribers until you re-assign them under Users."
       />
 
       <TierManager

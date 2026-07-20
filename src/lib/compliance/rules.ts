@@ -78,9 +78,9 @@ export function resolveMatRate(
 }
 
 /**
- * Fix #2: the partial-unit bedroom cap — min(3, bedroomCount - 1) per Toronto
- * bylaw, but the "3" and the "one fewer than total" are both rule data
- * (compound value), not literals, so a future municipality can express this
+ * Fix #2: the partial-unit bedroom cap — typically min(3, bedroomCount - 1).
+ * The "3" and the "one fewer than total" live in ComplianceRule data
+ * (compound value), not code literals, so each municipality can express this
  * differently.
  */
 export function resolvePartialUnitBedroomCap(

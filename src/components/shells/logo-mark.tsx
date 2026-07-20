@@ -28,7 +28,7 @@ export function Wordmark({ light = false, className }: { light?: boolean; classN
         className
       )}
     >
-      Nightcap
+      Nitecap
     </span>
   );
 }

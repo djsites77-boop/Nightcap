@@ -7,35 +7,35 @@ const TIERS = [
   {
     name: "Free",
     price: "$0",
-    unit: "forever",
+    unit: "/mo",
     blurb: "One property, full compliance tracking. No card required.",
-    features: ["1 property", "Night-count & MAT tracking", "Inspection checklist", "Manual booking entry"],
+    features: ["1 property", "Night-count & tax tracking", "Inspection checklist", "Manual booking entry"],
     cta: "Start free",
     featured: false,
   },
   {
-    name: "Starter",
-    price: "$5",
-    unit: "/property/mo",
-    blurb: "For hosts getting serious about staying compliant.",
-    features: ["Up to 5 properties", "Automatic iCal sync", "MAT remittance reminders", "Document vault"],
+    name: "Host",
+    price: "$19",
+    unit: "/mo",
+    blurb: "Predictable flat rate for hosts with a handful of listings.",
+    features: ["Up to 5 properties", "Automatic iCal sync", "Tax remittance reminders", "Document vault"],
     cta: "Start free trial",
     featured: false,
   },
   {
     name: "Growth",
-    price: "$4",
-    unit: "/property/mo",
-    blurb: "Cheaper per property as your portfolio scales.",
-    features: ["Up to 15 properties", "Everything in Starter", "PMS integrations (Hospitable, Guesty)", "Priority support"],
+    price: "$49",
+    unit: "/mo",
+    blurb: "For multi-listing hosts who want everything in one place.",
+    features: ["Up to 15 properties", "Everything in Host", "PMS integrations", "Priority support"],
     cta: "Start free trial",
     featured: true,
   },
   {
     name: "Portfolio",
-    price: "$3.50",
-    unit: "/property/mo",
-    blurb: "Built for property managers running a real operation.",
+    price: "$99",
+    unit: "/mo",
+    blurb: "Flat rate for managers running a real portfolio.",
     features: ["Unlimited properties", "Everything in Growth", "Team seats", "CSV bulk import & export"],
     cta: "Talk to us",
     featured: false,
@@ -45,15 +45,15 @@ const TIERS = [
 const FEATURES = [
   {
     title: "Never miss a night-count deadline",
-    body: "Nightcap tallies every booking against your municipality's short-term-rental night caps automatically, so you know exactly where you stand before the city does.",
+    body: "Nitecap tallies every booking against your municipality's short-term-rental night caps automatically, so you know exactly where you stand before the city does.",
   },
   {
-    title: "MAT remittance, handled",
-    body: "Municipal Accommodation Tax owed, collected, and remitted — tracked per booking, per period, with the paperwork ready when it's due.",
+    title: "Accommodation tax, handled",
+    body: "Municipal lodging tax owed, collected, and remitted — tracked per booking, per period, with the paperwork ready when it's due.",
   },
   {
     title: "Calendars that sync themselves",
-    body: "Connect Airbnb, VRBO, or your PMS once. Nightcap keeps bookings current with a debounced iCal sync built to survive flaky feeds.",
+    body: "Connect Airbnb, VRBO, or your PMS once. Nitecap keeps bookings current with a debounced iCal sync built to survive flaky feeds.",
   },
   {
     title: "Inspection & document vault",
@@ -63,62 +63,67 @@ const FEATURES = [
 
 export function LandingPage() {
   return (
-    <div className="bg-app-atmosphere min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <LogoMark size={26} />
-          <Wordmark />
+    <div className="min-h-dvh bg-app-sky">
+      <header className="safe-top sticky top-0 z-40 border-b border-border/70 bg-surface-glass backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+            <LogoMark size={30} />
+            <Wordmark className="text-[1.35rem] sm:text-xl" />
+          </Link>
+          <nav className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <Link
+              href="/login"
+              className="inline-flex h-10 items-center rounded-full px-3.5 text-sm font-bold text-muted-foreground transition-colors hover:bg-brand-soft hover:text-foreground"
+            >
+              Log in
+            </Link>
+            <Button asChild size="sm" className="h-10 px-4 shadow-soft">
+              <Link href="/sign-up">Start free</Link>
+            </Button>
+          </nav>
         </div>
-        <nav className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/sign-up">Start free</Link>
-          </Button>
-        </nav>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 pb-20 pt-10 text-center animate-page-in">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border-strong bg-surface px-3 py-1 text-xs font-semibold text-muted-foreground shadow-card">
-          Built for Canadian short-term rental hosts
-        </span>
-        <h1 className="mx-auto mt-6 max-w-3xl text-balance font-display text-4xl font-semibold leading-tight text-foreground sm:text-5xl">
-          Stay compliant with your city&apos;s STR rules without losing a weekend to spreadsheets.
-        </h1>
-        <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
-          Nightcap tracks night counts, MAT remittance, licences, and inspections for every property you run —
-          across every municipality that regulates short-term rentals.
+      <section className="mx-auto max-w-6xl px-4 pb-16 pt-10 text-center animate-page-in sm:px-6 sm:pb-20 sm:pt-16">
+        <p className="text-sm font-semibold text-muted-foreground">
+          For Canadian short-term rental hosts
         </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <Button asChild size="lg">
+        <h1 className="mx-auto mt-3 max-w-3xl text-balance font-display text-[1.85rem] font-extrabold leading-[1.15] tracking-tight text-foreground sm:mt-4 sm:text-5xl md:text-[3.25rem]">
+          Stay compliant without losing a weekend to spreadsheets.
+        </h1>
+        <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">
+          Nitecap tracks night caps, accommodation tax, licences, and inspections — so you know where you stand
+          before the city does.
+        </p>
+        <div className="mt-8 flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href="/sign-up">Start free — no card needed</Link>
           </Button>
-          <Button asChild variant="ghost" size="lg">
+          <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
             <Link href="#pricing">See pricing</Link>
           </Button>
         </div>
 
-        <div className="animate-fade-in stagger-2 mx-auto mt-16 max-w-5xl overflow-hidden rounded-xl border border-border bg-surface shadow-card-hover">
+        <div className="animate-fade-in mx-auto mt-16 max-w-5xl overflow-hidden rounded-3xl border border-border bg-surface shadow-card-hover [animation-delay:120ms]">
           <div className="flex items-center gap-1.5 border-b border-border bg-surface-alt px-4 py-2.5">
             <span className="size-2.5 rounded-full bg-status-risk/60" />
             <span className="size-2.5 rounded-full bg-status-warning/60" />
             <span className="size-2.5 rounded-full bg-status-ok/60" />
-            <span className="ml-3 text-xs text-subtle-foreground">nightcap.app/dashboard</span>
+            <span className="ml-3 text-xs text-subtle-foreground">Nitecap.app/dashboard</span>
           </div>
           <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
             {[
-              { label: "Nights used (Queen St W)", value: "142 / 180", tone: "ok" },
-              { label: "MAT owed this period", value: "$1,284.60", tone: "warning" },
+              { label: "Nights used this year", value: "142 / 180", tone: "ok" },
+              { label: "Tax owed this period", value: "$1,284.60", tone: "warning" },
               { label: "Licence renewal", value: "Due in 11 days", tone: "risk" },
             ].map((kpi, i) => (
               <div
                 key={kpi.label}
                 className={cn(
-                  "animate-fade-in rounded-lg border border-border bg-surface-alt p-4 text-left",
-                  i === 0 && "stagger-1",
-                  i === 1 && "stagger-2",
-                  i === 2 && "stagger-3"
+                  "animate-fade-in rounded-2xl border border-border bg-surface-alt p-4 text-left",
+                  i === 0 && "[animation-delay:80ms]",
+                  i === 1 && "[animation-delay:160ms]",
+                  i === 2 && "[animation-delay:240ms]"
                 )}
               >
                 <p className="text-xs font-medium text-subtle-foreground">{kpi.label}</p>
@@ -138,10 +143,10 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => (
-            <div key={f.title} className="rounded-xl border border-border bg-surface p-5 shadow-card">
+            <div key={f.title} className="rounded-3xl border border-border bg-surface p-5 shadow-card">
               <h3 className="font-display text-lg font-semibold text-foreground">{f.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
             </div>
@@ -149,17 +154,17 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section id="pricing" className="mx-auto max-w-6xl px-6 py-16">
+      <section id="pricing" className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
         <div className="text-center">
-          <h2 className="font-display text-3xl font-semibold text-foreground">Simple, per-property pricing</h2>
-          <p className="mt-3 text-muted-foreground">All prices in CAD. Cheaper per property as your portfolio grows.</p>
+          <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Simple flat monthly pricing</h2>
+          <p className="mt-3 text-muted-foreground">All prices in CAD. One rate for your plan — not per listing.</p>
         </div>
         <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {TIERS.map((tier) => (
             <div
               key={tier.name}
               className={cn(
-                "flex flex-col rounded-xl border p-6 shadow-card",
+                "flex flex-col rounded-3xl border p-6 shadow-card",
                 tier.featured
                   ? "border-accent bg-surface shadow-card-hover ring-1 ring-accent"
                   : "border-border bg-surface"
@@ -192,21 +197,21 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-        <h2 className="font-display text-3xl font-semibold text-foreground">Ready to stop guessing?</h2>
+      <section className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6 sm:py-16">
+        <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Ready to stop guessing?</h2>
         <p className="mt-3 text-muted-foreground">
           Set up your first property in minutes. No credit card required for the free tier.
         </p>
-        <Button asChild size="lg" className="mt-6">
+        <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
           <Link href="/sign-up">Start free</Link>
         </Button>
       </section>
 
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-subtle-foreground sm:flex-row">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-center text-sm text-subtle-foreground sm:flex-row sm:px-6 sm:text-left">
+          <div className="flex flex-col items-center gap-2 sm:flex-row">
             <LogoMark size={18} />
-            <span>Nightcap — STR compliance tracking for Canadian hosts</span>
+            <span className="max-w-xs text-balance sm:max-w-none">Nitecap — STR compliance tracking for Canadian hosts</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="hover:text-foreground">

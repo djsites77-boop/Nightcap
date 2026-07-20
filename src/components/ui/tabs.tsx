@@ -10,7 +10,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
   return (
     <TabsPrimitive.List
       className={cn(
-        "flex gap-1 overflow-x-auto rounded-full bg-brand-soft/80 p-1.5",
+        "flex max-w-full gap-1 overflow-x-auto overscroll-x-contain rounded-full bg-brand-soft/80 p-1.5 [-webkit-overflow-scrolling:touch] scrollbar-none",
         className
       )}
       {...props}
@@ -22,8 +22,8 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        "shrink-0 rounded-full px-4 py-2 text-sm font-bold text-muted-foreground transition-colors",
-        "hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-white",
+        "shrink-0 rounded-full px-3.5 py-2.5 text-sm font-bold text-muted-foreground transition-colors sm:px-4",
+        "hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-brand-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         className
       )}

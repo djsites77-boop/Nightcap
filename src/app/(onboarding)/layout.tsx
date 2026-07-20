@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/session";
-import { CenteredCardShell } from "@/components/shells/centered-card-shell";
+import { AppShell } from "@/components/shells/app-shell";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
-  await requireSession();
-  return <CenteredCardShell>{children}</CenteredCardShell>;
+  const session = await requireSession();
+  return <AppShell userName={session.user.name}>{children}</AppShell>;
 }

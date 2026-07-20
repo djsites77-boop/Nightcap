@@ -1,5 +1,5 @@
 /**
- * Email reminders for MVP §10: renewal <30d, cap >85%, MAT period closing.
+ * Email reminders for MVP §10: renewal <30d, cap >85%, tax period closing.
  * Without SMTP configured, messages are logged (honest non-delivery — see README).
  * Dedupes via recent AuditLog rows so a cron can run daily safely.
  */
@@ -8,6 +8,7 @@ import { differenceInCalendarDays } from "date-fns";
 import { prisma } from "@/lib/db";
 import { getPropertyStatusView } from "@/lib/property-status";
 import { quarterBounds } from "@/lib/mat-ledger";
+import { accommodationTaxFullName, accommodationTaxShortLabel } from "@/lib/accommodation-tax";
 
 async function deliver(to: string, subject: string, text: string) {
   // Placeholder for a real provider (Resend/SES/SMTP). Logging keeps the job
@@ -41,7 +42,7 @@ async function alreadyReminded(
 export async function runReminderJob() {
   const properties = await prisma.property.findMany({
     where: { archivedAt: null },
-    include: { user: true, matPeriods: true },
+    include: { user: true, matPeriods: true, municipality: true },
   });
 
   const sent: string[] = [];
@@ -59,7 +60,7 @@ export async function runReminderJob() {
       if (!(await alreadyReminded(property.id, "reminder_cap_warning", periodKey, 40))) {
         await deliver(
           property.user.email,
-          `Nightcap: ${property.nickname} approaching night cap`,
+          `Nitecap: ${property.nickname} approaching night cap`,
           `${property.nickname} is at ${view.nightsUsed} of ${view.cap} nights for ${year}.`
         );
         await prisma.auditLog.create({
@@ -80,7 +81,7 @@ export async function runReminderJob() {
       if (!(await alreadyReminded(property.id, "reminder_renewal_warning", periodKey, 25))) {
         await deliver(
           property.user.email,
-          `Nightcap: registration renews soon — ${property.nickname}`,
+          `Nitecap: registration renews soon — ${property.nickname}`,
           `Registration for ${property.nickname} expires in ${view.daysToRenewal} days (${periodKey}).`
         );
         await prisma.auditLog.create({
@@ -109,10 +110,12 @@ export async function runReminderJob() {
         due &&
         !(await alreadyReminded(property.id, "reminder_mat_period_closing", periodKey, 20))
       ) {
+        const taxShort = accommodationTaxShortLabel(property.municipality.province);
+        const taxFull = accommodationTaxFullName(property.municipality.province);
         await deliver(
           property.user.email,
-          `Nightcap: MAT period closing — ${property.nickname}`,
-          `Q${quarter} ${qYear} ends in ${daysLeft} days. Tracked amount owed: $${Number(due.amountOwed).toFixed(2)}. Nightcap tracks obligation only — it does not file or pay MAT.`
+          `Nitecap: ${taxShort} period closing — ${property.nickname}`,
+          `Q${quarter} ${qYear} ends in ${daysLeft} days. Tracked amount owed: $${Number(due.amountOwed).toFixed(2)}. Nitecap tracks obligation only — it does not file or pay ${taxFull}.`
         );
         await prisma.auditLog.create({
           data: {

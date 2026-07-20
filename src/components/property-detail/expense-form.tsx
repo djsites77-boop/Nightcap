@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { createExpense, deleteExpense, getExpensesCsv, suggestExpenseFromReceipt } from "@/app/actions/expenses";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -56,7 +57,7 @@ export function ExpenseForm({ propertyId }: { propertyId: string }) {
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-lg border border-border bg-surface-alt/40 p-3"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -93,10 +94,9 @@ export function ExpenseForm({ propertyId }: { propertyId: string }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="category">Category</Label>
-          <select
+          <NativeSelect
             id="category"
             name="category"
-            className="flex h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm"
             defaultValue={prefill?.category ?? "other"}
             key={prefill?.category ?? "default"}
           >
@@ -105,7 +105,7 @@ export function ExpenseForm({ propertyId }: { propertyId: string }) {
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="vendorName">Vendor</Label>
@@ -142,7 +142,7 @@ export function ExpenseForm({ propertyId }: { propertyId: string }) {
         <Input id="description" name="description" required placeholder="e.g. Replacement smoke detectors" />
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm font-semibold text-status-risk">{error}</p> : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Saving…" : "Add expense"}
       </Button>

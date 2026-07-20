@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { originFromRequest } from "@/lib/app-url";
 import { requireSession } from "@/lib/session";
 import { PMS_PROVIDERS, isPmsProviderConfigured, type PmsProviderKey } from "@/lib/pms/config";
 import { signPmsState } from "@/lib/pms/state";
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
 
   const session = await requireSession();
   const config = PMS_PROVIDERS[key];
-  const redirectUri = `${process.env.BETTER_AUTH_URL}/api/pms/${key}/callback`;
+  const redirectUri = `${originFromRequest(request)}/api/pms/${key}/callback`;
 
   const authorizeUrl = new URL(config.authorizeUrl);
   authorizeUrl.searchParams.set("client_id", process.env[config.clientIdEnv]!);

@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div className="w-full overflow-x-auto">
-      <table className={cn("w-full min-w-[560px] text-sm", className)} {...props} />
+    <div className="-mx-1 w-full overflow-x-auto overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch]">
+      <table className={cn("w-full min-w-[32rem] text-sm", className)} {...props} />
     </div>
   );
 }
@@ -30,7 +30,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "h-11 px-4 text-left text-xs font-bold text-muted-foreground first:pl-5 last:pr-5",
+        "h-11 px-3 text-left text-xs font-bold text-muted-foreground first:pl-4 last:pr-4 sm:px-4 sm:first:pl-5 sm:last:pr-5",
         className
       )}
       {...props}
@@ -39,7 +39,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<"td">) {
-  return <td className={cn("h-12 px-4 align-middle first:pl-5 last:pr-5", className)} {...props} />;
+  return <td className={cn("h-12 px-3 align-middle first:pl-4 last:pr-4 sm:px-4 sm:first:pl-5 sm:last:pr-5", className)} {...props} />;
 }
 
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };

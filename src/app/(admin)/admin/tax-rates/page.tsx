@@ -50,7 +50,7 @@ export default async function AdminTaxRatesPage() {
         description={
           <>
             Accommodation tax (MAT / lodging tax / tourism levy) per municipality. Setting a rate
-            schedules it from its effective date; each property&apos;s MAT ledger picks up its own
+            schedules it from its effective date; each property&apos;s tax ledger picks up its own
             jurisdiction automatically. Remitted quarters are never rewritten. Night caps and other
             rules live under{" "}
             <Link href="/admin/rules" className="font-semibold text-accent hover:underline">

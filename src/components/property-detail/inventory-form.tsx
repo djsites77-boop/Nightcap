@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { createInventoryAsset, deleteInventoryAsset, updateInventoryAssetStatus } from "@/app/actions/inventory";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -25,7 +26,7 @@ export function InventoryAssetForm({ propertyId }: { propertyId: string }) {
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-lg border border-border bg-surface-alt/40 p-3"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -45,33 +46,23 @@ export function InventoryAssetForm({ propertyId }: { propertyId: string }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="category">Category</Label>
-          <select
-            id="category"
-            name="category"
-            className="flex h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm"
-            defaultValue="furniture"
-          >
+          <NativeSelect id="category" name="category" defaultValue="furniture">
             {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="condition">Condition</Label>
-          <select
-            id="condition"
-            name="condition"
-            className="flex h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm"
-            defaultValue="good"
-          >
+          <NativeSelect id="condition" name="condition" defaultValue="good" className="capitalize">
             {CONDITIONS.map((c) => (
               <option key={c} value={c} className="capitalize">
                 {c}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="locationInProperty">Location</Label>
@@ -130,28 +121,28 @@ export function InventoryAssetRowActions({
         }}
       >
         <input type="hidden" name="assetId" value={assetId} />
-        <select
+        <NativeSelect
           name="condition"
           defaultValue={condition}
-          className="h-8 rounded-md border border-border-strong bg-surface px-2 text-xs capitalize"
+          className="h-9 min-h-9 w-auto rounded-xl px-2.5 pr-8 text-xs capitalize"
         >
           {CONDITIONS.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
           ))}
-        </select>
-        <select
+        </NativeSelect>
+        <NativeSelect
           name="status"
           defaultValue={status}
-          className="ml-2 h-8 rounded-md border border-border-strong bg-surface px-2 text-xs"
+          className="ml-2 h-9 min-h-9 w-auto rounded-xl px-2.5 pr-8 text-xs"
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
               {s.replace("_", " ")}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </form>
       <Button
         size="sm"

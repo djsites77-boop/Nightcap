@@ -40,7 +40,7 @@ export function RuleForm({ municipalityId }: { municipalityId: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="rounded-lg border border-dashed border-border-strong bg-surface-alt p-4">
+      <div className="rounded-2xl border border-dashed border-border-strong bg-surface-alt p-4">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
           <Sparkles className="size-4 text-accent" />
           Suggest from bylaw text
@@ -55,7 +55,7 @@ export function RuleForm({ municipalityId }: { municipalityId: string }) {
           onChange={(e) => setBylawText(e.target.value)}
           rows={4}
           placeholder="Paste bylaw excerpt here…"
-          className="mb-2 w-full rounded-md border border-border-strong bg-surface p-2 text-xs"
+          className="mb-2 w-full rounded-2xl border border-border-strong bg-surface p-3 text-sm shadow-sm focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
         />
         <Button
           type="button"
@@ -141,7 +141,7 @@ export function RuleForm({ municipalityId }: { municipalityId: string }) {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={4}
-            className="w-full rounded-md border border-border-strong bg-surface p-2 font-mono text-xs"
+            className="w-full rounded-2xl border border-border-strong bg-surface p-3 font-mono text-sm shadow-sm focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

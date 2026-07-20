@@ -33,6 +33,10 @@ import { resolveEffectiveRule, type ComplianceRuleRow } from "@/lib/compliance/r
 import { ensurePropertyLocation } from "@/lib/property-location";
 import { resolvePropertyThumbUrl } from "@/lib/property-thumb";
 import { PropertyThumb } from "@/components/property-thumb";
+import {
+  accommodationTaxShortLabel,
+  possessiveName,
+} from "@/lib/accommodation-tax";
 
 function fmtMoney(n: number): string {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -94,6 +98,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const activeMatRate =
     property.matPeriods.find((p) => p.status === "due")?.rateApplied ??
     property.matPeriods.at(-1)?.rateApplied;
+  const taxLabel = accommodationTaxShortLabel(property.municipality.province);
+  const cityPossessive = possessiveName(property.municipality.name);
 
   const statusCopy =
     view.status === "ok" ? "Looking good" : view.status === "warning" ? "Keep an eye on this" : "Needs you now";
@@ -101,10 +107,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   return (
     <div>
       <Link
-        href="/dashboard"
+        href="/properties"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-3.5" /> Home
+        <ArrowLeft className="size-3.5" /> Properties
       </Link>
 
       <div className="mb-6 overflow-hidden rounded-3xl glass">
@@ -116,12 +122,12 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         />
         <div className="space-y-3 p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl md:text-4xl">
               {property.nickname}
             </h1>
             <Badge variant={view.status}>{statusCopy}</Badge>
           </div>
-          <p className="text-sm font-medium text-muted-foreground">
+          <p className="text-sm font-medium leading-relaxed text-muted-foreground">
             {property.address} · {property.unitType === "entire_home" ? "Entire home" : "Partial unit"} ·{" "}
             {property.municipality.name}
           </p>
@@ -145,15 +151,21 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
-      <Tabs defaultValue="overview">
-        <TabsList>
+      <Tabs defaultValue="overview" className="min-w-0">
+        <TabsList className="w-full">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="mat">Tax</TabsTrigger>
-          <TabsTrigger value="checklist">Checklist</TabsTrigger>
+          <TabsTrigger value="checklist">
+            <span className="sm:hidden">List</span>
+            <span className="hidden sm:inline">Checklist</span>
+          </TabsTrigger>
           <TabsTrigger value="documents">Docs</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="bookings">
+            <span className="sm:hidden">Stays</span>
+            <span className="hidden sm:inline">Bookings</span>
+          </TabsTrigger>
+          <TabsTrigger value="expenses">Costs</TabsTrigger>
+          <TabsTrigger value="inventory">Items</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-5">
@@ -200,7 +212,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     tone={view.daysToRenewal !== null && view.daysToRenewal < 14 ? "risk" : view.daysToRenewal !== null && view.daysToRenewal < 30 ? "warning" : undefined}
                   />
                   <Advisory>
-                    Self-reported — Toronto&apos;s registration API isn&apos;t open to third-party
+                    Self-reported — {cityPossessive} registration API isn&apos;t open to third-party
                     verification, so this tracks the countdown only.
                   </Advisory>
                 </CardContent>
@@ -221,14 +233,14 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     not tracked automatically — calendar sync gives dates only, not guest counts.
                   </Advisory>
                   <Advisory>
-                    Any booking spanning a calendar-year or MAT-period boundary (e.g. a New Year&apos;s stay)
-                    is split night-by-night rather than counted entirely toward either period — see the MAT
-                    Ledger tab for a worked example when one occurs.
+                    Any booking spanning a calendar-year or {taxLabel}-period boundary (e.g. a New
+                    Year&apos;s stay) is split night-by-night rather than counted entirely toward either
+                    period — see the Tax tab for a worked example when one occurs.
                   </Advisory>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle>Calendar sync</CardTitle>
                   <SyncNowButton propertyId={property.id} />
                 </CardHeader>
@@ -253,7 +265,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
           <Card>
             <CardHeader>
               <CardTitle>
-                MAT ledger
+                {taxLabel} ledger
                 {activeMatRate != null
                   ? ` — ${(Number(activeMatRate) * 100).toFixed(1)}% of gross revenue`
                   : ""}
@@ -261,7 +273,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             </CardHeader>
             <CardContent className="pt-3">
               {property.matPeriods.length === 0 ? (
-                <p className="text-sm text-subtle-foreground">No MAT periods yet.</p>
+                <p className="text-sm text-subtle-foreground">No {taxLabel} periods yet.</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -330,9 +342,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   return (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-0"
+                      className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <InspectionCheckbox itemId={item.id} completed={item.completed} />
                         <div>
                           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -350,7 +362,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 pl-9 sm:pl-0">
                         {overdue && <Badge variant="risk">Overdue</Badge>}
                         {dueSoon && <Badge variant="warning">Due soon</Badge>}
                         {item.isCustom && <DeleteChecklistItemButton itemId={item.id} />}
@@ -380,7 +392,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               ) : (
                 <div className="flex flex-col">
                   {property.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between border-b border-border py-3 last:border-0">
+                    <div key={doc.id} className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="text-sm font-semibold text-foreground">{doc.fileName}</div>
                         <div className="text-xs text-subtle-foreground">
@@ -431,7 +443,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                           {fmtDate(b.checkIn)}
                           {boundarySet.has(b.id) ? (
                             <div className="mt-1 text-[11px] text-status-warning">
-                              Crosses MAT period — review proration
+                              Crosses {taxLabel} period — review proration
                             </div>
                           ) : null}
                         </TableCell>
@@ -456,7 +468,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
         <TabsContent value="expenses" className="mt-5">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Expenses</CardTitle>
               <ExportExpensesCsvButton propertyId={property.id} />
             </CardHeader>
@@ -495,7 +507,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </Table>
               )}
               <Advisory>
-                Nightcap tracks and categorizes expenses so they&apos;re organized for tax time — it does
+                Nitecap tracks and categorizes expenses so they&apos;re organized for tax time — it does
                 not file or remit anything on your behalf. Export the CSV and hand it to your accountant
                 or import it into your tax software.
               </Advisory>

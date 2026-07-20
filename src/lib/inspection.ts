@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 
-/** Default Toronto inspection checklist keys (MVP §10). Extensible later via ComplianceRule. */
+/** Default inspection checklist keys (MVP). Extensible later via ComplianceRule per municipality. */
 export const DEFAULT_INSPECTION_ITEM_KEYS = [
   "smoke_detector",
   "co_detector",

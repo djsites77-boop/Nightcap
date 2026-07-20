@@ -1,11 +1,11 @@
-# Nightcap
+# Nitecap
 
 Short-term rental compliance tracker for Canadian STR hosts — night-cap counter, MAT (Municipal
 Accommodation Tax) ledger, registration renewal tracking, and an inspection checklist. Toronto-first,
 architected so adding another Canadian municipality is a data-entry task, not a code change.
 
-See [`NIGHTCAP_BUILD_SPEC.md`](./NIGHTCAP_BUILD_SPEC.md) for the full product/data-model spec and
-[`design/nightcap-prototype.html`](./design/nightcap-prototype.html) for the original static design
+See [`Nitecap_BUILD_SPEC.md`](./Nitecap_BUILD_SPEC.md) for the full product/data-model spec and
+[`design/Nitecap-prototype.html`](./design/Nitecap-prototype.html) for the original static design
 reference (superseded by the real app below).
 
 ## Stack
@@ -24,15 +24,15 @@ Prisma 7 + Postgres 16 · Better Auth · Vitest.
 ## Quick start (Windows / PowerShell)
 
 ```powershell
-git clone https://github.com/djsites77-boop/nightcap.git
-cd nightcap
+git clone https://github.com/djsites77-boop/Nitecap.git
+cd Nitecap
 git checkout claude/code-review-vej32n
 .\scripts\start-dev.ps1 -Seed
 ```
 
 Prefer everything running in its own visible window (Postgres logs, the Next.js app, optionally
 Prisma Studio) instead of one shared console? Use `start-servers.ps1` instead — same setup steps,
-but each server gets its own named window (`Nightcap - Postgres`, `Nightcap - Next.js App`, ...):
+but each server gets its own named window (`Nitecap - Postgres`, `Nitecap - Next.js App`, ...):
 
 ```powershell
 .\scripts\start-servers.ps1 -Seed          # add -WithStudio for a Prisma Studio window too
@@ -47,8 +47,8 @@ Stop Postgres afterward with `.\scripts\stop-dev.ps1` (add `-Wipe` to also delet
 ## Quick start (macOS / Linux)
 
 ```bash
-git clone https://github.com/djsites77-boop/nightcap.git
-cd nightcap
+git clone https://github.com/djsites77-boop/Nitecap.git
+cd Nitecap
 git checkout claude/code-review-vej32n
 cp .env.example .env   # edit DATABASE_URL/secrets if not using the Docker default
 pnpm install
@@ -62,7 +62,7 @@ pnpm dev                # http://localhost:3500
 
 | Role | Email | Password |
 |---|---|---|
-| Host | `dana@queensthosting.ca` | `1` |
+| Host | `dara@queensthosting.ca` | `1` |
 | Platform admin | `admin@nightcap.app` | `1` |
 
 The host account has 4 seeded Toronto properties tuned to hit every compliance status (OK, WARNING,

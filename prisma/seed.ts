@@ -103,17 +103,57 @@ async function main() {
   // upserted here (by stable code) so a fresh `db push` database gets them
   // too, and so isDefault is always exactly one tier.
   const tierSeed = [
-    { code: "free", name: "Free", description: "First property free — try Nightcap end to end.", propertyLimit: 1 as number | null, pricePerPropertyCents: 0, isDefault: true, displayOrder: 0 },
-    { code: "starter", name: "Starter", description: "For hosts with a handful of listings.", propertyLimit: 5 as number | null, pricePerPropertyCents: 500, isDefault: false, displayOrder: 1 },
-    { code: "growth", name: "Growth", description: "Growing portfolios at a better per-property rate.", propertyLimit: 15 as number | null, pricePerPropertyCents: 400, isDefault: false, displayOrder: 2 },
-    { code: "portfolio", name: "Portfolio", description: "Unlimited properties at the best per-property rate.", propertyLimit: null as number | null, pricePerPropertyCents: 350, isDefault: false, displayOrder: 3 },
+    {
+      code: "free",
+      name: "Free",
+      description: "One listing free — try Nitecap end to end.",
+      propertyLimit: 1 as number | null,
+      // Flat monthly CAD cents (legacy column name pricePerPropertyCents).
+      pricePerPropertyCents: 0,
+      isDefault: true,
+      displayOrder: 0,
+    },
+    {
+      code: "starter",
+      name: "Host",
+      description: "Flat $19/mo for up to 5 listings — predictable for small hosts.",
+      propertyLimit: 5 as number | null,
+      pricePerPropertyCents: 1900,
+      isDefault: false,
+      displayOrder: 1,
+    },
+    {
+      code: "growth",
+      name: "Growth",
+      description: "Flat $49/mo for up to 15 listings.",
+      propertyLimit: 15 as number | null,
+      pricePerPropertyCents: 4900,
+      isDefault: false,
+      displayOrder: 2,
+    },
+    {
+      code: "portfolio",
+      name: "Portfolio",
+      description: "Flat $99/mo for unlimited listings.",
+      propertyLimit: null as number | null,
+      pricePerPropertyCents: 9900,
+      isDefault: false,
+      displayOrder: 3,
+    },
   ];
-  const tiersByCode = new Map<string, { id: string }>();
+  const tiersByCode = new Map<string, { id: string; propertyLimit: number | null; pricePerPropertyCents: number }>();
   for (const t of tierSeed) {
     const tier = await prisma.pricingTier.upsert({
       where: { code: t.code },
       create: t,
-      update: { name: t.name, description: t.description, propertyLimit: t.propertyLimit, pricePerPropertyCents: t.pricePerPropertyCents, displayOrder: t.displayOrder },
+      update: {
+        name: t.name,
+        description: t.description,
+        propertyLimit: t.propertyLimit,
+        pricePerPropertyCents: t.pricePerPropertyCents,
+        displayOrder: t.displayOrder,
+        isDefault: t.isDefault,
+      },
     });
     tiersByCode.set(t.code, tier);
   }
@@ -260,13 +300,38 @@ async function main() {
   }
 
   console.log("Seeding demo host user...");
-  const demoEmail = "dana@queensthosting.ca";
-  let user = await prisma.user.findUnique({ where: { email: demoEmail } });
+  const demoEmail = "dara@queensthosting.ca";
+  const legacyDemoEmail = "dana@queensthosting.ca";
+  let user =
+    (await prisma.user.findUnique({ where: { email: demoEmail } })) ??
+    (await prisma.user.findUnique({ where: { email: legacyDemoEmail } }));
   if (!user) {
     const result = await auth.api.signUpEmail({
-      body: { name: "Dana Okafor", email: demoEmail, password: "1" },
+      body: {
+        name: "Dara Ja",
+        email: demoEmail,
+        password: "1",
+        // @ts-expect-error additionalFields
+        firstName: "Dara",
+        lastName: "Ja",
+      },
     });
     user = await prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
+  } else {
+    const { hashPassword } = await import("better-auth/crypto");
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email: demoEmail,
+        name: "Dara Ja",
+        firstName: "Dara",
+        lastName: "Ja",
+      },
+    });
+    await prisma.account.updateMany({
+      where: { userId: user.id, providerId: "credential" },
+      data: { password: await hashPassword("1") },
+    });
   }
   console.log(`  Demo host login: ${demoEmail} / 1`);
   const starterTier = tiersByCode.get("starter")!;
@@ -275,21 +340,35 @@ async function main() {
     create: {
       userId: user.id,
       tierId: starterTier.id,
-      propertyLimit: 5,
-      pricePerPropertyCents: 500,
+      propertyLimit: starterTier.propertyLimit,
+      pricePerPropertyCents: starterTier.pricePerPropertyCents,
       startedAt: daysAgo(214),
     },
-    update: {},
+    update: {
+      tierId: starterTier.id,
+      propertyLimit: starterTier.propertyLimit,
+      pricePerPropertyCents: starterTier.pricePerPropertyCents,
+    },
   });
+
+  // Avoid duplicate demo listings when re-seeding (was inflating 36 / 5 math).
+  await prisma.property.deleteMany({ where: { userId: user.id } });
+  console.log("  Cleared existing demo properties before reseed");
 
   console.log("Seeding platform admin...");
   const adminEmail = "admin@nightcap.app";
   let admin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!admin) {
     const result = await auth.api.signUpEmail({
-      body: { name: "Nightcap Admin", email: adminEmail, password: "1" },
+      body: { name: "Nitecap Admin", email: adminEmail, password: "1" },
     });
     admin = await prisma.user.findUniqueOrThrow({ where: { id: result.user.id } });
+  } else {
+    const { hashPassword } = await import("better-auth/crypto");
+    await prisma.account.updateMany({
+      where: { userId: admin.id, providerId: "credential" },
+      data: { password: await hashPassword("1") },
+    });
   }
   await prisma.user.update({ where: { id: admin.id }, data: { role: "admin" } });
   console.log(`  Admin login: ${adminEmail} / 1`);

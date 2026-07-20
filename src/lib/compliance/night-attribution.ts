@@ -53,7 +53,7 @@ export function rangesOverlap(a: NightRange, b: NightRange): boolean {
  * A property listed on more than one platform (Airbnb + VRBO + Booking.com)
  * routinely has the same real stay show up in more than one connected
  * calendar: when a guest books via one platform, the others sync in that
- * date range as blocked, and Nightcap's iCal sync can't distinguish "a real
+ * date range as blocked, and Nitecap's iCal sync can't distinguish "a real
  * reservation on this platform" from "blocked because it's taken elsewhere"
  * — both parse as an ordinary calendar event. Summing each booking's `nights`
  * independently would count that one real night once per calendar it

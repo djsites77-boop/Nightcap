@@ -1,0 +1,14 @@
+# Nightcap ngrok tunnel — merges with your global config (authtoken lives there).
+# Reserved domain: nightcap.ngrok.app (id: rd_3GkUNCoz5E49RmzBVNeE9McnqNx)
+#
+# Start manually:
+#   ngrok start --config "%LocalAppData%\ngrok\ngrok.yml" --config ngrok.yml nightcap
+#
+# Or use: .\scripts\start-ngrok.ps1
+
+version: "3"
+endpoints:
+  - name: nightcap
+    url: https://nightcap.ngrok.app
+    upstream:
+      url: http://localhost:3500

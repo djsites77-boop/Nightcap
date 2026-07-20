@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { originFromRequest } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { encryptSecret } from "@/lib/crypto";
 import { PMS_PROVIDERS, type PmsProviderKey } from "@/lib/pms/config";
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
     return NextResponse.redirect(new URL("/settings?pms_error=invalid_state", request.url));
   }
 
-  const redirectUri = `${process.env.BETTER_AUTH_URL}/api/pms/${key}/callback`;
+  const redirectUri = `${originFromRequest(request)}/api/pms/${key}/callback`;
   const tokenResponse = await fetch(config.tokenUrl, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

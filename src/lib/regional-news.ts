@@ -76,7 +76,7 @@ export async function fetchRegionalStrNews(regionLabel: string): Promise<Regiona
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-CA&gl=CA&ceid=CA:en`;
 
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; NightcapNewsBot/1.0)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; NitecapNewsBot/1.0)" },
   });
   if (!res.ok) throw new Error(`Google News feed returned ${res.status}`);
   const xml = await res.text();

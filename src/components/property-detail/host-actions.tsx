@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   addManualBooking,
   syncPropertyCalendars,
@@ -70,7 +71,7 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
 
   return (
     <form
-      className="mt-4 flex flex-col gap-3 rounded-lg border border-border bg-surface-alt/40 p-3"
+      className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -89,17 +90,12 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="docType">Type</Label>
-          <select
-            id="docType"
-            name="docType"
-            className="flex h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm"
-            defaultValue="insurance"
-          >
+          <NativeSelect id="docType" name="docType" defaultValue="insurance">
             <option value="fire_safety_cert">Fire safety certificate</option>
             <option value="insurance">Insurance</option>
             <option value="floor_plan">Floor plan</option>
             <option value="other">Other</option>
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="expiryDate">Expiry (optional)</Label>
@@ -110,7 +106,7 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
         <Label htmlFor="file">File</Label>
         <Input id="file" name="file" type="file" required />
       </div>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm font-semibold text-status-risk">{error}</p> : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Uploading…" : "Upload document"}
       </Button>
@@ -124,7 +120,7 @@ export function ManualBookingForm({ propertyId }: { propertyId: string }) {
 
   return (
     <form
-      className="flex flex-col gap-3 rounded-lg border border-border bg-surface-alt/40 p-3"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -152,23 +148,18 @@ export function ManualBookingForm({ propertyId }: { propertyId: string }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="platform">Platform</Label>
-          <select
-            id="platform"
-            name="platform"
-            className="flex h-10 w-full rounded-md border border-border-strong bg-surface px-3 text-sm"
-            defaultValue="direct"
-          >
+          <NativeSelect id="platform" name="platform" defaultValue="direct">
             <option value="airbnb">Airbnb</option>
             <option value="vrbo">VRBO</option>
             <option value="direct">Direct</option>
-          </select>
+          </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="grossAmount">Gross amount (CAD)</Label>
           <Input id="grossAmount" name="grossAmount" type="number" step="0.01" min="0" />
         </div>
       </div>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm font-semibold text-status-risk">{error}</p> : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Saving…" : "Add booking"}
       </Button>

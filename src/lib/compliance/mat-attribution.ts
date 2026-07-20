@@ -46,7 +46,7 @@ export function splitNightsAcrossPeriods(
  *
  * Per spec's open question #5: this always prorates linearly by night. A
  * booking whose price isn't actually uniform per night (e.g. a lump-sum
- * cleaning fee) isn't detectable from the data Nightcap has (a single
+ * cleaning fee) isn't detectable from the data Nitecap has (a single
  * gross_amount per booking) — callers should flag any booking that crosses a
  * period boundary for the host to review, rather than trusting the linear
  * split silently.

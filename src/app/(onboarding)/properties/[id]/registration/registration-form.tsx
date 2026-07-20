@@ -31,7 +31,7 @@ export function RegistrationForm({
     >
       <div className="mb-4 flex flex-col gap-1.5">
         <Label htmlFor="registrationNumber">Registration number</Label>
-        <Input id="registrationNumber" name="registrationNumber" required placeholder="STR-2024-08841" />
+        <Input id="registrationNumber" name="registrationNumber" required placeholder="Your registration / licence number" />
       </div>
       <div className="mb-5 grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -46,12 +46,12 @@ export function RegistrationForm({
 
       {error && <p className="mb-3 text-sm text-status-risk">{error}</p>}
 
-      <div className="flex gap-2.5">
-        <Button type="button" variant="ghost" asChild>
-          <Link href={`/properties/${propertyId}/connect-calendar`}>← Back</Link>
+      <div className="flex flex-col gap-2.5 sm:flex-row">
+        <Button type="button" variant="ghost" className="sm:flex-1" asChild>
+          <Link href="/dashboard">Cancel</Link>
         </Button>
-        <Button type="submit" className="flex-1" disabled={pending}>
-          {pending ? "Saving…" : "Continue →"}
+        <Button type="submit" className="sm:flex-1" disabled={pending}>
+          {pending ? "Saving…" : "Finish →"}
         </Button>
       </div>
     </form>

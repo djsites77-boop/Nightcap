@@ -1,9 +1,8 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Starts every piece of Nightcap's dev stack, each in its own dedicated,
-    clearly-named PowerShell window: Postgres (Docker logs), the Next.js app,
-    and optionally Prisma Studio.
+    Starts Nightcap's dev stack in dedicated, clearly-named PowerShell windows:
+    Postgres (Docker logs), the Next.js app, and optionally Prisma Studio / ngrok.
 
 .PARAMETER Seed
     Also seed the database before starting (safe to run once on empty data).
@@ -11,23 +10,35 @@
 .PARAMETER WithStudio
     Also open a window running Prisma Studio (DB browser) at http://localhost:5555.
 
+.PARAMETER WithDbLogs
+    Deprecated — Postgres logs already open by default. Kept so older commands still work.
+
+.PARAMETER WithNgrok
+    Also open an ngrok tunnel window (https://nightcap.ngrok.app -> localhost:3500).
+    Works alongside localhost — no .env changes required.
+
 .EXAMPLE
     .\scripts\start-servers.ps1 -Seed
 
 .EXAMPLE
     .\scripts\start-servers.ps1 -WithStudio
+
+.EXAMPLE
+    .\scripts\start-servers.ps1 -WithNgrok
 #>
 param(
     [switch]$Seed,
-    [switch]$WithStudio
+    [switch]$WithStudio,
+    [switch]$WithDbLogs,
+    [switch]$WithNgrok
 )
 
-# Deliberately NOT $ErrorActionPreference = "Stop": Docker/git/pnpm routinely
-# write normal status text to stderr, and with that preference set, Windows
-# PowerShell 5.1 treats any stderr line from a native command as a fatal
-# error and aborts the whole script even though the command succeeded. Every
-# native call below is followed by an explicit $LASTEXITCODE check instead,
-# which reflects the command's *actual* success/failure.
+# Deliberately NOT $ErrorActionPreference = "Stop": Docker/pnpm/Prisma
+# routinely write normal status text to stderr, and with that preference set,
+# Windows PowerShell 5.1 treats any stderr line from a native command as a
+# fatal error and aborts the whole script even though the command succeeded.
+# Native calls go through Invoke-Native, which prints stderr as plain text
+# and returns the command's real exit code.
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
 
@@ -39,13 +50,20 @@ function Assert-Command($name, $hint) {
 }
 
 function Invoke-Native {
-    # Runs a native command and prints its output as plain text instead of
-    # letting PowerShell render stderr lines in red "NativeCommandError"
-    # blocks - Docker/pnpm/Prisma all write routine status text to stderr,
-    # which looks alarming even on success. Returns the real exit code.
+    # Prints native-command output as plain text instead of PowerShell's red
+    # "NativeCommandError" formatting for stderr, which Docker/pnpm/Prisma
+    # use for routine status text even on success. Returns the real exit code.
     param([Parameter(Mandatory)][ScriptBlock]$Command)
-    & $Command 2>&1 | ForEach-Object { Write-Host $_ }
-    return $LASTEXITCODE
+    $output = & $Command 2>&1
+    $exitCode = $LASTEXITCODE
+    foreach ($line in $output) {
+        if ($line -is [System.Management.Automation.ErrorRecord]) {
+            Write-Host $line.ToString()
+        } else {
+            Write-Host $line
+        }
+    }
+    return $exitCode
 }
 
 function Start-NamedWindow($title, $command) {
@@ -67,10 +85,10 @@ if (-not (Test-Path ".env")) {
 }
 
 Write-Host "-- Installing dependencies (pnpm install) --" -ForegroundColor Cyan
-if ((Invoke-Native { pnpm install }) -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { pnpm install }) -ne 0) { exit 1 }
 
 Write-Host "-- Starting Postgres container (host port 4500) --" -ForegroundColor Cyan
-if ((Invoke-Native { docker compose up -d db }) -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { docker compose up -d db }) -ne 0) { exit 1 }
 
 Write-Host "-- Waiting for Postgres to become healthy --" -ForegroundColor Cyan
 $maxAttempts = 30
@@ -86,14 +104,14 @@ while ($true) {
     }
     Start-Sleep -Seconds 2
 }
-Write-Host "   Postgres is up." -ForegroundColor Green
+Write-Host "   Postgres is up (background container on port 4500)." -ForegroundColor Green
 
 Write-Host "-- Applying database migrations --" -ForegroundColor Cyan
-if ((Invoke-Native { pnpm exec prisma migrate deploy }) -ne 0) { exit $LASTEXITCODE }
+if ((Invoke-Native { pnpm exec prisma migrate deploy }) -ne 0) { exit 1 }
 
 if ($Seed) {
     Write-Host "-- Seeding demo data --" -ForegroundColor Cyan
-    if ((Invoke-Native { pnpm db:seed }) -ne 0) { exit $LASTEXITCODE }
+    if ((Invoke-Native { pnpm db:seed }) -ne 0) { exit 1 }
 }
 
 Write-Host "-- Opening dedicated server windows --" -ForegroundColor Cyan
@@ -106,6 +124,16 @@ Start-Sleep -Seconds 1
 
 if ($WithStudio) {
     Start-NamedWindow "Nightcap - Prisma Studio (http://localhost:5555)" "pnpm db:studio"
+    Start-Sleep -Seconds 1
+}
+
+# -WithDbLogs kept for compatibility; Postgres logs already open by default.
+if ($WithDbLogs) {
+    Write-Host "   (Postgres logs window already opened above)" -ForegroundColor DarkGray
+}
+
+if ($WithNgrok) {
+    & "$PSScriptRoot\start-ngrok.ps1"
 }
 
 Write-Host ""
@@ -113,6 +141,7 @@ Write-Host "Launched:" -ForegroundColor Green
 Write-Host "  - Nightcap - Postgres (Docker logs, port 4500)"
 Write-Host "  - Nightcap - Next.js App (http://localhost:3500)"
 if ($WithStudio) { Write-Host "  - Nightcap - Prisma Studio (http://localhost:5555)" }
+if ($WithNgrok) { Write-Host "  - Nightcap - ngrok (https://nightcap.ngrok.app)" }
 Write-Host ""
 Write-Host "Closing the Postgres log window does NOT stop the container (it's just tailing logs)." -ForegroundColor DarkGray
-Write-Host "Run .\scripts\stop-servers.ps1 to close every window and stop Postgres in one step." -ForegroundColor DarkGray
+Write-Host "Stop everything with: .\scripts\stop-servers.ps1" -ForegroundColor DarkGray

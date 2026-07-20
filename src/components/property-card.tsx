@@ -19,6 +19,12 @@ const STATUS_COPY = {
   risk: "Needs you now",
 } as const;
 
+const STATUS_SHORT = {
+  ok: "Good",
+  warning: "Watch",
+  risk: "Urgent",
+} as const;
+
 export function PropertyCard({
   id,
   nickname,
@@ -26,6 +32,7 @@ export function PropertyCard({
   view,
   thumbSrc,
   thumbKind,
+  taxDueLabel = "Tax due",
 }: {
   id: string;
   nickname: string;
@@ -33,6 +40,8 @@ export function PropertyCard({
   view: PropertyStatusView;
   thumbSrc: string | null;
   thumbKind: "photo" | "map" | null;
+  /** Host-facing tax label from the property's province (e.g. "MAT due"). */
+  taxDueLabel?: string;
 }) {
   const nightsLabel =
     view.cap != null && view.nightsUsed != null
@@ -55,17 +64,20 @@ export function PropertyCard({
       />
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-extrabold tracking-tight text-foreground group-hover:text-brand">
               {nickname}
             </h3>
             <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">{address}</p>
           </div>
-          <Badge variant={view.status}>{STATUS_COPY[view.status]}</Badge>
+          <Badge variant={view.status} className="w-fit shrink-0">
+            <span className="sm:hidden">{STATUS_SHORT[view.status]}</span>
+            <span className="hidden sm:inline">{STATUS_COPY[view.status]}</span>
+          </Badge>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3">
+        <div className="mt-4 grid grid-cols-3 gap-1.5 border-t border-border pt-3 sm:gap-2">
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground">Nights</p>
             <p className="text-sm font-extrabold tabular-nums">{nightsLabel ?? "—"}</p>
@@ -77,7 +89,7 @@ export function PropertyCard({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[11px] font-semibold text-muted-foreground">MAT due</p>
+            <p className="text-[11px] font-semibold text-muted-foreground">{taxDueLabel}</p>
             <p className="text-sm font-extrabold tabular-nums">
               {view.matDueCents > 0 ? fmtMoney(view.matDueCents) : "$0"}
             </p>

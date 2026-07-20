@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { importTransactionCsv, type CsvImportResult } from "@/app/actions/csv-import";
 
 export function CsvImportForm({ propertyId }: { propertyId: string }) {
@@ -14,7 +15,7 @@ export function CsvImportForm({ propertyId }: { propertyId: string }) {
   return (
     <form
       ref={formRef}
-      className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface-alt p-3"
+      className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border-strong bg-surface-alt p-3"
       action={(formData) => {
         setError(null);
         setResult(null);
@@ -30,16 +31,20 @@ export function CsvImportForm({ propertyId }: { propertyId: string }) {
       }}
     >
       <UploadCloud className="size-4 text-subtle-foreground" />
-      <select name="platform" defaultValue="airbnb" className="rounded-md border border-border-strong bg-surface px-2 py-1.5 text-xs">
+      <NativeSelect
+        name="platform"
+        defaultValue="airbnb"
+        className="h-9 min-h-9 w-auto rounded-xl px-2.5 pr-8 text-xs"
+      >
         <option value="airbnb">Airbnb export</option>
         <option value="vrbo">VRBO export</option>
-      </select>
+      </NativeSelect>
       <input
         type="file"
         name="csv"
         accept=".csv,text/csv"
         required
-        className="flex-1 text-xs text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-surface-sunken file:px-2 file:py-1 file:text-xs"
+        className="flex-1 text-xs text-muted-foreground file:mr-2 file:rounded-xl file:border-0 file:bg-surface-sunken file:px-2.5 file:py-1.5 file:text-xs file:font-semibold"
       />
       <Button type="submit" size="sm" variant="ghost" disabled={pending}>
         {pending ? "Importing…" : "Backfill revenue from CSV"}

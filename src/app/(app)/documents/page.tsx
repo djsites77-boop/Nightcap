@@ -47,7 +47,7 @@ export default async function DocumentsPage() {
               <Link key={d.id} href={`/properties/${d.property.id}`}>
                 <Card className="h-full transition-transform hover:-translate-y-0.5 hover:shadow-lift">
                   <CardContent className="flex gap-4 p-5">
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand">
                       {d.docType.includes("insurance") ? (
                         <Shield className="size-5" />
                       ) : d.docType.includes("floor") ? (

@@ -26,9 +26,10 @@ export default async function AdminOverviewPage() {
     prisma.pricingTier.findMany({ orderBy: { displayOrder: "asc" } }),
   ]);
 
+  // Flat monthly tier price (field name is legacy; not × listings).
   const mrrCents = users.reduce((sum, u) => {
     const price = u.subscription?.pricePerPropertyCents ?? 0;
-    return sum + price * u.properties.length;
+    return sum + price;
   }, 0);
 
   const tierCounts: Record<string, number> = {};

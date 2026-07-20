@@ -1,9 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { LogoMark, Wordmark } from "@/components/shells/logo-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "@/components/sign-out-button";
 import { BottomTabs, DesktopNav } from "@/components/shells/host-nav";
+
+function isWizardRoute(pathname: string): boolean {
+  if (pathname === "/properties/new") return true;
+  return (
+    /^\/properties\/[^/]+\/(connect-calendar|registration|done)\/?$/.test(pathname)
+  );
+}
 
 export function AppShell({
   children,
@@ -12,11 +21,14 @@ export function AppShell({
   children: React.ReactNode;
   userName: string;
 }) {
+  const pathname = usePathname();
+  const wizard = isWizardRoute(pathname);
+
   return (
     <div className="min-h-dvh bg-app-sky">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface-glass backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1080px] items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2.5">
+      <header className="safe-top sticky top-0 z-40 border-b border-border bg-surface-glass backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-[1080px] min-w-0 items-center justify-between gap-3 px-4 sm:h-16 sm:gap-4 sm:px-6">
+          <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
             <LogoMark size={30} />
             <div className="leading-tight">
               <Wordmark />
@@ -24,24 +36,26 @@ export function AppShell({
                 Hey {userName.split(" ")[0]}
               </p>
             </div>
-          </div>
-          <DesktopNav />
-          <div className="flex items-center gap-1.5 md:hidden">
+          </Link>
+          {!wizard && <DesktopNav />}
+          <div className="flex items-center gap-1.5">
             <ThemeToggle />
-            <SignOutButton className="!px-2" />
-          </div>
-          <div className="hidden items-center gap-2 md:flex">
-            <ThemeToggle />
-            <SignOutButton />
+            <SignOutButton className="md:!px-4 !px-2" />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1080px] px-4 pb-28 pt-5 sm:px-6 sm:pb-10 sm:pt-8 animate-rise">
+      <main
+        className={
+          wizard
+            ? "mx-auto min-w-0 max-w-[1080px] px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-5 sm:px-6 sm:pb-10 sm:pt-8 animate-rise"
+            : "mx-auto min-w-0 max-w-[1080px] px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] pt-5 sm:px-6 sm:pb-10 sm:pt-8 animate-rise"
+        }
+      >
         {children}
       </main>
 
-      <BottomTabs />
+      {!wizard && <BottomTabs />}
     </div>
   );
 }

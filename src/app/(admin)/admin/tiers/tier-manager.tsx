@@ -72,7 +72,7 @@ export function TierManager({ tiers }: { tiers: TierRow[] }) {
               <TableRow>
                 <TableHead>Tier</TableHead>
                 <TableHead className="text-right">Property limit</TableHead>
-                <TableHead className="text-right">Price / property / mo</TableHead>
+                <TableHead className="text-right">Monthly price</TableHead>
                 <TableHead className="text-right">Subscribers</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -199,7 +199,7 @@ export function TierManager({ tiers }: { tiers: TierRow[] }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tier-price">Price per property per month (CAD)</Label>
+              <Label htmlFor="tier-price">Monthly price (CAD, flat)</Label>
               <Input
                 id="tier-price"
                 name="pricePerProperty"
@@ -207,9 +207,12 @@ export function TierManager({ tiers }: { tiers: TierRow[] }) {
                 min={0}
                 step={0.01}
                 required
-                placeholder="5.00"
+                placeholder="19.00"
                 defaultValue={editing ? (editing.pricePerPropertyCents / 100).toFixed(2) : ""}
               />
+              <p className="text-xs text-subtle-foreground">
+                Flat subscription for the tier — includes up to the property limit above.
+              </p>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tier-order">Display order</Label>

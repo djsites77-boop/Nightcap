@@ -34,11 +34,12 @@ export function NightGauge({
   const left = Math.max(0, cap - nightsUsed);
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative" style={{ width: viewW }}>
+    <div className="flex w-full max-w-[220px] flex-col items-center">
+      <div className="relative w-full" style={{ maxWidth: viewW }}>
         <svg
           viewBox={`0 0 ${viewW} ${viewH}`}
-          width={viewW}
+          className="mx-auto h-auto w-full"
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={`${nightsUsed} of ${cap} nights used — ${left} left`}
         >
