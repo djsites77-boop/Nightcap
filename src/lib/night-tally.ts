@@ -1,13 +1,18 @@
 import { prisma } from "@/lib/db";
-import { nightsByCalendarYear } from "@/lib/compliance/night-attribution";
+import { unionNightsByCalendarYear } from "@/lib/compliance/night-attribution";
 import { resolveNightCapForYear, type ComplianceRuleRow } from "@/lib/compliance/rules";
 
 /**
  * Recomputes NightTally for a property from its current non-cancelled
- * bookings, attributing each booking's nights per-night to the calendar year
- * they actually fall in (spec §6a) — never the whole booking to its
- * check-in year. Call this after any booking is created, cancelled, or its
- * dates change.
+ * bookings, attributing nights per-night to the calendar year they actually
+ * fall in (spec §6a) — never the whole booking to its check-in year. Call
+ * this after any booking is created, cancelled, or its dates change.
+ *
+ * Nights are counted as the *union* of night-dates across all bookings, not
+ * summed booking-by-booking: a property listed on more than one platform can
+ * have the same real stay reported by more than one connected calendar (see
+ * unionNightsByCalendarYear), and a plain sum would double-count that night
+ * against the cap.
  */
 export async function recomputeNightTally(propertyId: string): Promise<void> {
   const property = await prisma.property.findUniqueOrThrow({
@@ -20,13 +25,7 @@ export async function recomputeNightTally(propertyId: string): Promise<void> {
     select: { checkIn: true, checkOut: true },
   });
 
-  const nightsByYear = new Map<number, number>();
-  for (const booking of bookings) {
-    const perYear = nightsByCalendarYear(booking.checkIn, booking.checkOut);
-    for (const [year, nights] of perYear) {
-      nightsByYear.set(year, (nightsByYear.get(year) ?? 0) + nights);
-    }
-  }
+  const nightsByYear = unionNightsByCalendarYear(bookings);
 
   if (property.unitType !== "entire_home") {
     // No annual cap tier for partial-unit properties (spec §6) — nothing to tally.

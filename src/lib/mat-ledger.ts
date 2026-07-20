@@ -5,6 +5,7 @@ import {
   type ComplianceRuleRow,
 } from "@/lib/compliance/rules";
 import { prorateRevenueAcrossPeriods } from "@/lib/compliance/mat-attribution";
+import { dropFullyOverlappedDuplicates } from "@/lib/compliance/night-attribution";
 
 /** Inclusive UTC quarter bounds: Q1=Jan–Mar, … Q4=Oct–Dec. */
 export function quarterBounds(year: number, quarter: 1 | 2 | 3 | 4) {
@@ -87,7 +88,7 @@ export async function recomputeMatLedger(propertyId: string, year: number) {
 
   if (periods.length === 0) return { boundaryCrossingBookingIds: [] as string[] };
 
-  const bookings = await prisma.booking.findMany({
+  const rawBookings = await prisma.booking.findMany({
     where: {
       propertyId,
       cancelledAt: null,
@@ -96,6 +97,14 @@ export async function recomputeMatLedger(propertyId: string, year: number) {
       checkOut: { gt: new Date(Date.UTC(year, 0, 1)) },
     },
   });
+
+  // A property listed on more than one platform can have the same real stay
+  // reported as a priced booking on more than one connected calendar/PMS
+  // link. Drop any booking whose entire night range duplicates an
+  // earlier-created one so its revenue isn't counted twice — see
+  // unionNightsByCalendarYear's doc comment for why the same night can show
+  // up more than once in the first place.
+  const bookings = dropFullyOverlappedDuplicates(rawBookings);
 
   const periodRanges = periods.map((p) => ({ start: p.periodStart, end: p.periodEnd }));
   const grossByPeriod = new Map(periods.map((p) => [p.id, 0]));
