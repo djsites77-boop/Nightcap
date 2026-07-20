@@ -1,7 +1,7 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { PropertyStatusView } from "@/lib/property-status";
 import type { ComplianceStatus } from "@/lib/compliance/status";
 import { cn } from "@/lib/utils";
 
@@ -25,28 +25,62 @@ const BAR_COLOR: Record<ComplianceStatus, string> = {
   risk: "bg-status-risk",
 };
 
-export function NightCapBar({
+export type PortfolioRowData = {
+  id: string;
+  nickname: string;
+  address: string;
+  municipalityLabel: string;
+  taxDueLabel: string;
+  status: ComplianceStatus;
+  nightsUsed: number | null;
+  cap: number | null;
+  daysToRenewal: number | null;
+  matDueCents: number;
+};
+
+function Metric({
+  label,
+  value,
+  valueClassName,
+  className,
+}: {
+  label: string;
+  value: ReactNode;
+  valueClassName?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("min-w-0 space-y-1", className)}>
+      <p className="text-[11px] font-semibold leading-none text-muted-foreground">{label}</p>
+      <p className={cn("text-sm font-extrabold leading-none tabular-nums text-foreground", valueClassName)}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function NightCapBar({
   nightsUsed,
   cap,
   status,
-  className,
 }: {
   nightsUsed: number;
   cap: number;
   status: ComplianceStatus;
-  className?: string;
 }) {
   const pct = Math.max(0, Math.min(100, cap > 0 ? (nightsUsed / cap) * 100 : 0));
   const left = Math.max(0, cap - nightsUsed);
 
   return (
-    <div className={cn("min-w-0", className)}>
-      <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <p className="text-sm font-extrabold tabular-nums text-foreground">
+    <div className="min-w-0 space-y-1.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-extrabold leading-none tabular-nums text-foreground">
           {nightsUsed}
           <span className="font-semibold text-muted-foreground"> / {cap}</span>
         </p>
-        <p className="text-xs font-semibold tabular-nums text-muted-foreground">{left} left</p>
+        <p className="text-[11px] font-semibold leading-none tabular-nums text-muted-foreground">
+          {left} left
+        </p>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-surface-sunken">
         <div
@@ -58,68 +92,73 @@ export function NightCapBar({
   );
 }
 
-/** Dense portfolio row — scan nights / renewal / tax across many listings. */
+/** Portfolio row — fixed columns so metrics never collide. */
 export function PortfolioPropertyRow({
-  id,
-  nickname,
-  municipalityLabel,
-  view,
-  taxDueLabel = "Tax due",
+  row,
+  compact = false,
 }: {
-  id: string;
-  nickname: string;
-  municipalityLabel: string;
-  view: PropertyStatusView;
-  taxDueLabel?: string;
+  row: PortfolioRowData;
+  compact?: boolean;
 }) {
+  const {
+    id,
+    nickname,
+    municipalityLabel,
+    taxDueLabel,
+    status,
+    nightsUsed,
+    cap,
+    daysToRenewal,
+    matDueCents,
+  } = row;
+
   return (
     <Link
       href={`/properties/${id}`}
       className={cn(
-        "group flex flex-col gap-3 border-b border-border px-4 py-4 transition-colors last:border-b-0",
-        "hover:bg-surface-alt/60 focus-visible:bg-surface-alt/60 focus-visible:outline-none sm:flex-row sm:items-center sm:gap-4 sm:px-5"
+        "group grid grid-cols-1 gap-x-6 gap-y-3 border-b border-border transition-colors last:border-b-0",
+        "hover:bg-surface-alt/60 focus-visible:bg-surface-alt/60 focus-visible:outline-none",
+        "sm:grid-cols-[minmax(12rem,1.35fr)_minmax(9rem,1.15fr)_4.75rem_5.75rem_1.25rem] sm:items-center",
+        compact ? "px-4 py-3.5 sm:px-5 sm:py-3.5" : "px-4 py-4 sm:px-5 sm:py-4"
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
           <h3 className="truncate text-base font-extrabold tracking-tight text-foreground group-hover:text-brand">
             {nickname}
           </h3>
-          <Badge variant={view.status} className="shrink-0">
-            {STATUS_COPY[view.status]}
+          <Badge variant={status} className="shrink-0">
+            {STATUS_COPY[status]}
           </Badge>
         </div>
-        <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">{municipalityLabel}</p>
+        <p className="truncate text-xs font-medium leading-snug text-muted-foreground">
+          {municipalityLabel}
+        </p>
       </div>
 
-      <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:min-w-[280px] sm:flex-1 sm:grid-cols-[1.4fr_0.8fr_0.8fr] sm:items-end">
-        {view.cap != null && view.nightsUsed != null ? (
-          <NightCapBar nightsUsed={view.nightsUsed} cap={view.cap} status={view.status} />
+      <div className="min-w-0">
+        {cap != null && nightsUsed != null ? (
+          <NightCapBar nightsUsed={nightsUsed} cap={cap} status={status} />
         ) : (
-          <p className="text-sm font-semibold text-muted-foreground">No night cap</p>
+          <Metric label="Night cap" value="None" valueClassName="text-muted-foreground" />
         )}
-        <div>
-          <p className="text-[11px] font-semibold text-muted-foreground">Renewal</p>
-          <p
-            className={cn(
-              "text-sm font-extrabold tabular-nums",
-              view.daysToRenewal != null && view.daysToRenewal < 30
-                ? "text-status-warning"
-                : "text-foreground"
-            )}
-          >
-            {view.daysToRenewal != null ? `${view.daysToRenewal}d` : "—"}
-          </p>
-        </div>
-        <div className="text-right sm:text-left">
-          <p className="text-[11px] font-semibold text-muted-foreground">{taxDueLabel}</p>
-          <p className="text-sm font-extrabold tabular-nums text-foreground">
-            {view.matDueCents > 0 ? fmtMoney(view.matDueCents) : "$0"}
-          </p>
-        </div>
       </div>
 
-      <ChevronRight className="hidden size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
+      <Metric
+        label="Renewal"
+        value={daysToRenewal != null ? `${daysToRenewal}d` : "—"}
+        valueClassName={
+          daysToRenewal != null && daysToRenewal < 30 ? "text-status-warning" : undefined
+        }
+      />
+
+      <Metric
+        label={taxDueLabel}
+        value={matDueCents > 0 ? fmtMoney(matDueCents) : "$0"}
+        className="sm:text-right"
+      />
+
+      <ChevronRight className="hidden size-4 justify-self-end text-subtle-foreground transition-transform group-hover:translate-x-0.5 sm:block" />
     </Link>
   );
 }

@@ -14,17 +14,20 @@
 
 | Role | Light | Dark |
 |------|-------|------|
-| Background | `#EEF1F7` soft dusk paper | `#0A0E1A` |
-| Surface / glass | `rgba(255,255,255,0.72)` | `rgba(22,28,45,0.72)` |
-| Foreground | `#121826` | `#F1F4FA` |
-| Muted | `#5B657A` | `#9AA3B8` |
-| Brand (night) | `#1A2240` | `#E8ECF8` |
-| Brand foreground | `#FFFFFF` | `#0A0E1A` |
+| Background | `#EEF1F7` soft dusk paper | `#070A12` deep night |
+| Surface | `#FFFFFF` | `#121826` elevated panel |
+| Surface / glass | `rgba(255,255,255,0.72)` | frosted `#121826` + hairline highlight |
+| Foreground | `#121826` | `#F4F6FB` |
+| Muted | `#5B657A` | `#A7B0C4` |
+| Brand (night) | `#1A2240` | `#EEF1F8` |
+| Brand soft | `#E8EBF4` | `#252D44` lifted cool chip |
+| Brand foreground | `#FFFFFF` | `#070A12` |
 | Accent (honey) | `#E8A017` | `#F0B429` |
-| Accent soft | `#FFF4D6` | `#3A2E12` |
-| OK / Warn / Risk | `#16A34A` / `#E89A3C` / `#E5484D` | lighter variants |
+| Accent soft | `#FFF4D6` | `#2C2412` quiet amber well |
+| OK / Warn / Risk | `#16A34A` / `#E89A3C` / `#E5484D` | bright marks on translucent soft wells |
 
 Accent is honey/amber (evening drink) — never status-green, never purple.
+Dark mode: layered elevation + warm amber / cool navy ambience — not flat black or purple neon.
 
 ## Typography
 - **Display / UI:** Plus Jakarta Sans (Friendly SaaS pairing)
@@ -55,6 +58,7 @@ Accent is honey/amber (evening drink) — never status-green, never purple.
 
 ## Home (portfolio)
 - Multi-property: urgency-sorted dense list + thin portfolio strip — **not** a single-listing gauge hero
+- **4+ listings:** default to “Needs a look” work queue; filter chips; search at 6+; compact rows; “N on track — show all”
 - Single-property: large night-cap gauge is appropriate
 - Photo gallery cards live on `/properties`; Home is for triage/compare
 - Headline must match the portfolio state (e.g. “3 of 4 need a look”)

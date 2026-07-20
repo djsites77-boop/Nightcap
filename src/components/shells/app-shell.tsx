@@ -26,7 +26,7 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-app-sky">
-      <header className="safe-top sticky top-0 z-40 border-b border-border bg-surface-glass backdrop-blur-xl">
+      <header className="safe-top sticky top-0 z-40 border-b border-border bg-surface-glass backdrop-blur-xl dark:border-white/10">
         <div className="mx-auto flex h-14 max-w-[1080px] min-w-0 items-center justify-between gap-3 px-4 sm:h-16 sm:gap-4 sm:px-6">
           <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
             <LogoMark size={30} />

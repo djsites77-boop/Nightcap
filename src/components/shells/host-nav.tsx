@@ -24,7 +24,7 @@ export function BottomTabs() {
 
   return (
     <nav
-      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-glass px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl md:hidden"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface-glass px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl dark:border-white/10 md:hidden"
       aria-label="Main"
     >
       <div className="mx-auto flex max-w-lg items-end justify-around gap-0.5">

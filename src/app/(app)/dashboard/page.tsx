@@ -7,12 +7,16 @@ import { getCachedRegionalNews } from "@/lib/regional-news";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { OccupancyAreaChart, type MonthPoint } from "@/components/charts/occupancy-area-chart";
+import {
+  PortfolioNightsChart,
+  type PropertyNightSeries,
+} from "@/components/charts/occupancy-area-chart";
 import { NightGauge } from "@/components/night-gauge";
 import {
-  PortfolioPropertyRow,
   statusSortRank,
+  type PortfolioRowData,
 } from "@/components/portfolio-property-row";
+import { PortfolioList } from "@/components/portfolio-list";
 import { ensurePropertyLocation } from "@/lib/property-location";
 import { accommodationTaxShortLabel } from "@/lib/accommodation-tax";
 
@@ -33,27 +37,45 @@ function monthLabel(key: string): string {
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleString("en-CA", { month: "short" });
 }
 
-/** Attribute nights from each booking into calendar months (UTC). */
-function nightsByMonth(bookings: Array<{ checkIn: Date; checkOut: Date }>): MonthPoint[] {
-  const map = new Map<string, number>();
+function lastSixMonthKeys(): string[] {
   const now = new Date();
+  const keys: string[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    map.set(monthKey(d), 0);
+    keys.push(monthKey(d));
   }
+  return keys;
+}
+
+/** Attribute nights from each booking into calendar months (UTC), per property. */
+function nightsByPropertyMonth(
+  bookings: Array<{ propertyId: string; checkIn: Date; checkOut: Date }>,
+  propertyIds: string[],
+  monthKeys: string[]
+): PropertyNightSeries[] {
+  const index = new Map(monthKeys.map((k, i) => [k, i]));
+  const counts = new Map<string, number[]>(
+    propertyIds.map((id) => [id, monthKeys.map(() => 0)])
+  );
 
   for (const b of bookings) {
+    const months = counts.get(b.propertyId);
+    if (!months) continue;
     const cursor = new Date(b.checkIn);
     cursor.setUTCHours(12, 0, 0, 0);
     const end = new Date(b.checkOut);
     while (cursor < end) {
-      const key = monthKey(cursor);
-      if (map.has(key)) map.set(key, (map.get(key) ?? 0) + 1);
+      const i = index.get(monthKey(cursor));
+      if (i != null) months[i] = (months[i] ?? 0) + 1;
       cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
   }
 
-  return [...map.entries()].map(([key, nights]) => ({ label: monthLabel(key), nights }));
+  return propertyIds.map((id) => ({
+    id,
+    nickname: id,
+    months: counts.get(id) ?? monthKeys.map(() => 0),
+  }));
 }
 
 export default async function DashboardPage() {
@@ -80,10 +102,22 @@ export default async function DashboardPage() {
 
   const views = await Promise.all(located.map((p) => getPropertyStatusView(p.id)));
   const rows = located
-    .map((p, i) => ({
-      property: p,
-      view: views[i]!,
-    }))
+    .map((p, i) => {
+      const view = views[i]!;
+      const row: PortfolioRowData = {
+        id: p.id,
+        nickname: p.nickname,
+        address: p.address,
+        municipalityLabel: `${p.municipality.name}, ${p.municipality.province}`,
+        taxDueLabel: `${accommodationTaxShortLabel(p.municipality.province)} due`,
+        status: view.status,
+        nightsUsed: view.nightsUsed,
+        cap: view.cap,
+        daysToRenewal: view.daysToRenewal,
+        matDueCents: view.matDueCents,
+      };
+      return { property: p, view, row };
+    })
     .sort((a, b) => {
       const byStatus = statusSortRank(a.view.status) - statusSortRank(b.view.status);
       if (byStatus !== 0) return byStatus;
@@ -94,14 +128,37 @@ export default async function DashboardPage() {
       return bRatio - aRatio;
     });
 
+  const portfolioRows = rows.map((r) => r.row);
+  const monthKeys = lastSixMonthKeys();
+  const monthLabels = monthKeys.map(monthLabel);
+
   const bookings = await prisma.booking.findMany({
     where: {
       property: { userId: session.user.id, archivedAt: null },
       cancelledAt: null,
     },
-    select: { checkIn: true, checkOut: true },
+    select: { propertyId: true, checkIn: true, checkOut: true },
   });
-  const chartData = nightsByMonth(bookings);
+
+  const nightSeries = nightsByPropertyMonth(
+    bookings,
+    located.map((p) => p.id),
+    monthKeys
+  ).map((s) => ({
+    ...s,
+    nickname: located.find((p) => p.id === s.id)?.nickname ?? s.id,
+  }));
+  // Keep chart property order aligned with urgency-sorted rows when possible
+  const orderedSeries: PropertyNightSeries[] = rows.map((r) => {
+    const found = nightSeries.find((s) => s.id === r.property.id);
+    return (
+      found ?? {
+        id: r.property.id,
+        nickname: r.property.nickname,
+        months: monthKeys.map(() => 0),
+      }
+    );
+  });
 
   const regions = [...new Map(properties.map((p) => [p.municipality.id, p.municipality])).values()];
   const newsByRegion = await Promise.all(
@@ -119,6 +176,7 @@ export default async function DashboardPage() {
     provinces.length === 1 ? accommodationTaxShortLabel(provinces[0]!) : "Tax";
   const attention = riskCount + warningCount;
   const single = rows.length === 1 ? rows[0] : null;
+  const largePortfolio = rows.length >= 4;
 
   const greeting =
     rows.length === 0
@@ -173,10 +231,10 @@ export default async function DashboardPage() {
         <>
           {/* Portfolio summary — one strip, not competing KPI cards */}
           <div className="glass grid grid-cols-2 gap-px overflow-hidden rounded-3xl sm:grid-cols-3">
-            <div className="bg-surface-glass px-4 py-4 sm:px-5">
+            <div className="space-y-1.5 bg-surface-glass px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-xs font-semibold text-muted-foreground">Needs attention</p>
               <p
-                className={`mt-1 text-2xl font-extrabold tabular-nums ${
+                className={`text-2xl font-extrabold tabular-nums leading-none ${
                   riskCount
                     ? "text-status-risk"
                     : warningCount
@@ -186,22 +244,26 @@ export default async function DashboardPage() {
               >
                 {attention}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-subtle-foreground">
+              <p className="text-[11px] font-semibold leading-snug text-subtle-foreground">
                 {riskCount} urgent · {warningCount} watch
               </p>
             </div>
-            <div className="bg-surface-glass px-4 py-4 sm:px-5">
+            <div className="space-y-1.5 bg-surface-glass px-4 py-4 sm:px-5 sm:py-5">
               <p className="text-xs font-semibold text-muted-foreground">{taxShort} to remit</p>
-              <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
+              <p className="text-2xl font-extrabold tabular-nums leading-none text-foreground">
                 {matDueTotalCents > 0 ? fmtMoney(matDueTotalCents) : "$0"}
               </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-subtle-foreground">open periods</p>
+              <p className="text-[11px] font-semibold leading-snug text-subtle-foreground">open periods</p>
             </div>
-            <div className="col-span-2 bg-surface-glass px-4 py-4 sm:col-span-1 sm:px-5">
+            <div className="col-span-2 space-y-1.5 bg-surface-glass px-4 py-4 sm:col-span-1 sm:px-5 sm:py-5">
               <p className="text-xs font-semibold text-muted-foreground">Portfolio</p>
-              <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">{rows.length}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-subtle-foreground">
-                {rows.length === 1 ? "listing" : "listings"} · sorted by urgency
+              <p className="text-2xl font-extrabold tabular-nums leading-none text-foreground">{rows.length}</p>
+              <p className="text-[11px] font-semibold leading-snug text-subtle-foreground">
+                {rows.length === 1
+                  ? "listing"
+                  : largePortfolio
+                    ? "listings · attention first"
+                    : "listings · sorted by urgency"}
               </p>
             </div>
           </div>
@@ -231,45 +293,46 @@ export default async function DashboardPage() {
           )}
 
           <Card className="overflow-hidden p-0">
-            <CardHeader className="flex flex-row items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
-              <div>
+            <CardHeader className="flex flex-row items-end justify-between gap-4 border-b border-border px-4 py-5 sm:px-5">
+              <div className="min-w-0 space-y-1.5">
                 <CardTitle>
-                  {rows.length === 1 ? "Your listing" : "Listings by urgency"}
+                  {rows.length === 1
+                    ? "Your listing"
+                    : largePortfolio
+                      ? "Work queue"
+                      : "Listings by urgency"}
                 </CardTitle>
-                <p className="mt-0.5 text-sm text-muted-foreground">
+                <p className="text-sm leading-snug text-muted-foreground">
                   {rows.length === 1
                     ? "Tap through for nights, tax, docs, and more."
-                    : "Compare night caps side by side — worst first."}
+                    : largePortfolio
+                      ? attention > 0
+                        ? `Showing what needs you first — ${attention} of ${rows.length}.`
+                        : `All clear. Browse or search all ${rows.length} listings.`
+                      : "Compare night caps side by side — worst first."}
                 </p>
               </div>
               <Link
                 href="/properties"
-                className="shrink-0 text-sm font-bold text-accent-strong hover:underline"
+                className="mb-0.5 shrink-0 text-sm font-bold text-accent-strong hover:underline"
               >
                 Gallery
               </Link>
             </CardHeader>
             <CardContent className="p-0">
-              {rows.map(({ property, view }) => (
-                <PortfolioPropertyRow
-                  key={property.id}
-                  id={property.id}
-                  nickname={property.nickname}
-                  municipalityLabel={`${property.municipality.name}, ${property.municipality.province}`}
-                  view={view}
-                  taxDueLabel={`${accommodationTaxShortLabel(property.municipality.province)} due`}
-                />
-              ))}
+              <PortfolioList rows={portfolioRows} attentionCount={attention} />
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-1.5">
               <CardTitle>Nights booked — last 6 months</CardTitle>
-              <p className="text-sm text-muted-foreground">Across your whole portfolio</p>
+              <p className="text-sm leading-snug text-muted-foreground">
+                Portfolio total by default — filter listings or switch to Compare.
+              </p>
             </CardHeader>
             <CardContent>
-              <OccupancyAreaChart data={chartData} />
+              <PortfolioNightsChart monthLabels={monthLabels} series={orderedSeries} />
             </CardContent>
           </Card>
 

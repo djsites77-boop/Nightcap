@@ -9,6 +9,7 @@ import { PropertyCard } from "@/components/property-card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SyncAllCalendarsButton } from "@/components/property-detail/host-actions";
 import { accommodationTaxShortLabel } from "@/lib/accommodation-tax";
 
 export default async function PropertiesPage() {
@@ -45,12 +46,15 @@ export default async function PropertiesPage() {
         title="Properties"
         description="Open a listing to see nights, tax, docs, expenses, and inventory."
         actions={
-          <Button asChild>
-            <Link href="/properties/new">
-              <Plus className="size-4" />
-              Add property
-            </Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {rows.length > 0 ? <SyncAllCalendarsButton /> : null}
+            <Button asChild>
+              <Link href="/properties/new">
+                <Plus className="size-4" />
+                Add property
+              </Link>
+            </Button>
+          </div>
         }
       />
 

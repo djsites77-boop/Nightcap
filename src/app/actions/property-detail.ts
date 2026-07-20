@@ -61,6 +61,30 @@ export async function syncPropertyCalendars(propertyId: string) {
   revalidatePath("/dashboard");
 }
 
+/** Sync every calendar connection across the host's portfolio. */
+export async function syncAllHostCalendars() {
+  const session = await requireSession();
+  const connections = await prisma.calendarConnection.findMany({
+    where: { property: { userId: session.user.id, archivedAt: null } },
+    select: { id: true, propertyId: true },
+  });
+
+  const propertyIds = new Set<string>();
+  for (const c of connections) {
+    await syncCalendarConnection(c.id).catch(() => undefined);
+    propertyIds.add(c.propertyId);
+  }
+
+  const year = new Date().getUTCFullYear();
+  for (const propertyId of propertyIds) {
+    await recomputeMatLedger(propertyId, year).catch(() => undefined);
+    revalidatePath(`/properties/${propertyId}`);
+  }
+  revalidatePath("/dashboard");
+  revalidatePath("/properties");
+  return { synced: connections.length };
+}
+
 export async function toggleInspectionItem(itemId: string, completed: boolean) {
   const session = await requireSession();
   const item = await prisma.inspectionItem.findUniqueOrThrow({ where: { id: itemId } });
@@ -144,7 +168,14 @@ export async function getDocumentViewUrl(documentId: string): Promise<string> {
 
 const uploadSchema = z.object({
   propertyId: z.string().min(1),
-  docType: z.enum(["fire_safety_cert", "insurance", "floor_plan", "other"]),
+  docType: z.enum([
+    "fire_safety_cert",
+    "insurance",
+    "floor_plan",
+    "registration",
+    "receipt",
+    "other",
+  ]),
   expiryDate: z.string().optional(),
 });
 

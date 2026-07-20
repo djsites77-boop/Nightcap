@@ -20,6 +20,7 @@ import {
   ManualBookingForm,
   SyncNowButton,
   CoverPhotoForm,
+  RegistrationProofForm,
 } from "@/components/property-detail/host-actions";
 import { ExpenseForm, DeleteExpenseButton, ExportExpensesCsvButton } from "@/components/property-detail/expense-form";
 import { InventoryAssetForm, InventoryAssetRowActions } from "@/components/property-detail/inventory-form";
@@ -35,7 +36,6 @@ import { resolvePropertyThumbUrl } from "@/lib/property-thumb";
 import { PropertyThumb } from "@/components/property-thumb";
 import {
   accommodationTaxShortLabel,
-  possessiveName,
 } from "@/lib/accommodation-tax";
 
 function fmtMoney(n: number): string {
@@ -99,7 +99,20 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     property.matPeriods.find((p) => p.status === "due")?.rateApplied ??
     property.matPeriods.at(-1)?.rateApplied;
   const taxLabel = accommodationTaxShortLabel(property.municipality.province);
-  const cityPossessive = possessiveName(property.municipality.name);
+  const cityName = property.municipality.name;
+  const addressAlreadyNamesCity = property.address
+    .toLowerCase()
+    .includes(cityName.toLowerCase());
+  const locationLine = [
+    property.address,
+    property.unitType === "entire_home" ? "Entire home" : "Partial unit",
+    addressAlreadyNamesCity ? null : cityName,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const registrationDocs = property.documents.filter((d) => d.docType === "registration");
+  const hasCoverPhoto = thumb?.kind === "photo";
 
   const statusCopy =
     view.status === "ok" ? "Looking good" : view.status === "warning" ? "Keep an eye on this" : "Needs you now";
@@ -128,10 +141,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <Badge variant={view.status}>{statusCopy}</Badge>
           </div>
           <p className="text-sm font-medium leading-relaxed text-muted-foreground">
-            {property.address} · {property.unitType === "entire_home" ? "Entire home" : "Partial unit"} ·{" "}
-            {property.municipality.name}
+            {locationLine}
           </p>
-          <CoverPhotoForm propertyId={property.id} />
+          <CoverPhotoForm propertyId={property.id} hasCover={hasCoverPhoto} />
         </div>
       </div>
 
@@ -212,9 +224,25 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     tone={view.daysToRenewal !== null && view.daysToRenewal < 14 ? "risk" : view.daysToRenewal !== null && view.daysToRenewal < 30 ? "warning" : undefined}
                   />
                   <Advisory>
-                    Self-reported — {cityPossessive} registration API isn&apos;t open to third-party
-                    verification, so this tracks the countdown only.
+                    These details come from what you entered for {cityName} — most municipalities
+                    don&apos;t publish a registration API hosts can call, so Nitecap tracks the expiry
+                    countdown from your numbers. It does not verify status with the city. Upload your
+                    confirmation below (or in Docs) to keep proof on file.
                   </Advisory>
+                  {registrationDocs.length > 0 ? (
+                    <div className="rounded-2xl border border-border bg-surface-alt/40 px-3 py-2.5">
+                      <p className="text-xs font-semibold text-muted-foreground">Registration proof on file</p>
+                      <ul className="mt-1.5 space-y-1">
+                        {registrationDocs.map((doc) => (
+                          <li key={doc.id} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="truncate font-semibold">{doc.fileName}</span>
+                            <ViewDocumentButton documentId={doc.id} />
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  <RegistrationProofForm propertyId={property.id} />
                 </CardContent>
               </Card>
             </div>
@@ -223,6 +251,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               <Card>
                 <CardHeader>
                   <CardTitle>Compliance advisories</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Built from {cityName} rules on this listing — not generic city copy.
+                  </p>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-3">
                   <Advisory>
@@ -230,7 +261,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       Occupancy
                       {adultsPerBedroom != null ? ` (max ${adultsPerBedroom} adults/bedroom)` : ""}:
                     </b>{" "}
-                    not tracked automatically — calendar sync gives dates only, not guest counts.
+                    {adultsPerBedroom != null
+                      ? "from this municipality's occupancy rule. "
+                      : "no occupancy rule configured for this municipality yet. "}
+                    Calendar sync gives stay dates only — not guest counts — so Nitecap can&apos;t
+                    auto-check this.
                   </Advisory>
                   <Advisory>
                     Any booking spanning a calendar-year or {taxLabel}-period boundary (e.g. a New
@@ -246,14 +281,33 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-3">
                   {property.calendarConnections.length === 0 ? (
-                    <p className="text-sm text-subtle-foreground">No calendar connected yet.</p>
+                    <p className="text-sm text-subtle-foreground">
+                      Connect an iCal URL once for this listing. After that, Nitecap refreshes it on a
+                      schedule — you only tap sync when you want an immediate pull.
+                    </p>
                   ) : (
-                    property.calendarConnections.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between text-sm">
-                        <span className="capitalize text-muted-foreground">{c.platform}</span>
-                        <Badge variant={c.syncStatus === "connected" ? "ok" : "warning"}>{c.syncStatus}</Badge>
-                      </div>
-                    ))
+                    <>
+                      {property.calendarConnections.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
+                          <div>
+                            <span className="capitalize font-semibold text-foreground">{c.platform}</span>
+                            {c.lastSyncedAt ? (
+                              <p className="text-xs text-muted-foreground">
+                                Last synced {fmtDate(c.lastSyncedAt)}
+                              </p>
+                            ) : null}
+                          </div>
+                          <Badge variant={c.syncStatus === "connected" ? "ok" : "warning"}>
+                            {c.syncStatus}
+                          </Badge>
+                        </div>
+                      ))}
+                      <p className="text-xs leading-snug text-muted-foreground">
+                        One connection per listing is enough. Background sync keeps bookings current;
+                        use Sync this listing only when you need a refresh now. From Properties you can
+                        sync your whole portfolio at once.
+                      </p>
+                    </>
                   )}
                 </CardContent>
               </Card>

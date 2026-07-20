@@ -393,6 +393,7 @@ enum DocumentType {
   fire_safety_cert
   insurance
   floor_plan
+  registration
   receipt
   other
 }
