@@ -3,88 +3,99 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Nightcap design tokens — civic ledger SaaS.
- * Cool paper / true-night navy. Deep teal accent (far from status green/
- * orange/red). See design-system/nightcap/MASTER.md (ui-ux-pro-max curated).
+ * Nightcap — consumer host companion.
+ * Soft dusk paper + honey accent (evening drink). Glass panels.
+ * See design-system/nightcap/MASTER.md
  */
 :root {
-  --background: #f5f7fa;
+  --background: #eef1f7;
   --surface: #ffffff;
-  --surface-alt: #eceff3;
-  --surface-sunken: #e4e8ed;
-  --foreground: #12172b;
-  --muted-foreground: #545f70;
-  --subtle-foreground: #8994a3;
-  --border: #dce1e8;
-  --border-strong: #c3cbd6;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-alt: #e4e8f1;
+  --surface-sunken: #d8deea;
+  --foreground: #121826;
+  --muted-foreground: #5b657a;
+  --subtle-foreground: #8b94a8;
+  --border: rgba(26, 34, 64, 0.1);
+  --border-strong: rgba(26, 34, 64, 0.18);
 
-  --accent: #0f6e6e;
-  --accent-strong: #0b5757;
-  --accent-soft: #e3f1f0;
-  --accent-foreground: #ffffff;
+  --brand: #1a2240;
+  --brand-soft: #e8ebf4;
 
-  --status-ok: #0ca30c;
-  --status-ok-soft: #e3f6e1;
-  --status-warning: #ec835a;
-  --status-warning-soft: #fdeae1;
-  --status-risk: #d03b3b;
-  --status-risk-soft: #fbe4e2;
+  --accent: #e8a017;
+  --accent-strong: #c9860a;
+  --accent-soft: #fff4d6;
+  --accent-foreground: #1a2240;
 
-  --rail-background: #12172b;
-  --rail-surface: #1b2138;
-  --rail-foreground: #adb4c6;
+  --status-ok: #16a34a;
+  --status-ok-soft: #dcfce7;
+  --status-warning: #e89a3c;
+  --status-warning-soft: #fff3e0;
+  --status-risk: #e5484d;
+  --status-risk-soft: #ffe4e5;
+
+  --rail-background: #1a2240;
+  --rail-surface: #2a3358;
+  --rail-foreground: #a8b0c8;
   --rail-foreground-active: #ffffff;
 
-  --radius: 0.75rem;
-  --shadow-card: 0 1px 2px rgba(18, 23, 43, 0.04), 0 1px 3px rgba(18, 23, 43, 0.06);
-  --shadow-card-hover: 0 4px 12px rgba(18, 23, 43, 0.08), 0 1px 3px rgba(18, 23, 43, 0.04);
+  --radius: 1.25rem;
+  --shadow-soft: 0 8px 32px rgba(26, 34, 64, 0.08);
+  --shadow-lift: 0 16px 48px rgba(26, 34, 64, 0.12);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 150ms;
   --duration: 220ms;
 }
 
 .dark {
-  --background: #0b0f1a;
-  --surface: #131a2b;
-  --surface-alt: #1b2338;
-  --surface-sunken: #0f1526;
-  --foreground: #e8eaf0;
-  --muted-foreground: #a7afc0;
-  --subtle-foreground: #6b7690;
-  --border: #2a3348;
-  --border-strong: #37415c;
+  --background: #0a0e1a;
+  --surface: #141a2c;
+  --surface-glass: rgba(20, 26, 44, 0.75);
+  --surface-alt: #1c2438;
+  --surface-sunken: #0f1422;
+  --foreground: #f1f4fa;
+  --muted-foreground: #9aa3b8;
+  --subtle-foreground: #6d7690;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
 
-  --accent: #3fbdb5;
-  --accent-strong: #6fd4cc;
-  --accent-soft: #16302e;
-  --accent-foreground: #06211f;
+  --brand: #e8ecf8;
+  --brand-soft: #1c2438;
 
-  --status-ok: #4caf6d;
-  --status-ok-soft: #10280f;
-  --status-warning: #d3a32e;
-  --status-warning-soft: #38200f;
-  --status-risk: #e5726b;
-  --status-risk-soft: #351212;
+  --accent: #f0b429;
+  --accent-strong: #ffc94a;
+  --accent-soft: #3a2e12;
+  --accent-foreground: #0a0e1a;
 
-  --rail-background: #080b14;
-  --rail-surface: #0f1526;
-  --rail-foreground: #7c86a0;
+  --status-ok: #4ade80;
+  --status-ok-soft: #14532d;
+  --status-warning: #fbbf24;
+  --status-warning-soft: #422006;
+  --status-risk: #f87171;
+  --status-risk-soft: #450a0a;
+
+  --rail-background: #060912;
+  --rail-surface: #12182a;
+  --rail-foreground: #8b94a8;
   --rail-foreground-active: #ffffff;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-card-hover: 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-glass: var(--surface-glass);
   --color-surface-alt: var(--surface-alt);
   --color-surface-sunken: var(--surface-sunken);
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle-foreground: var(--subtle-foreground);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
 
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
@@ -103,13 +114,13 @@
   --color-rail-foreground: var(--rail-foreground);
   --color-rail-foreground-active: var(--rail-foreground-active);
 
-  --font-display: var(--font-source-serif), Georgia, serif;
-  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 10px);
 }
 
 @layer base {
@@ -124,7 +135,6 @@
     background: var(--accent-soft);
     color: var(--accent-strong);
   }
-  /* Visible focus for keyboard nav (WCAG) — never remove */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
@@ -140,48 +150,39 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .shadow-card {
-    box-shadow: var(--shadow-card);
+  .glass {
+    background: var(--surface-glass);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
   }
 
-  .shadow-card-hover {
-    box-shadow: var(--shadow-card-hover);
-  }
-
-  /* Soft paper atmosphere behind app content */
-  .bg-app-atmosphere {
+  .bg-app-sky {
     background:
-      radial-gradient(900px 480px at 100% -10%, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent 55%),
-      radial-gradient(700px 400px at -5% 100%, color-mix(in srgb, var(--surface-alt) 80%, transparent), transparent 50%),
+      radial-gradient(900px 520px at 90% -20%, color-mix(in srgb, var(--accent-soft) 85%, transparent), transparent 55%),
+      radial-gradient(700px 480px at -10% 40%, color-mix(in srgb, var(--brand-soft) 70%, transparent), transparent 50%),
+      radial-gradient(600px 400px at 50% 120%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 45%),
       var(--background);
   }
 
-  .animate-page-in {
-    animation: page-in var(--duration) var(--ease-out) both;
+  .animate-rise {
+    animation: rise var(--duration) var(--ease-out) both;
   }
 
-  .animate-fade-in {
-    animation: fade-in var(--duration) var(--ease-out) both;
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
   }
 
-  .stagger-1 {
-    animation-delay: 40ms;
-  }
-  .stagger-2 {
-    animation-delay: 80ms;
-  }
-  .stagger-3 {
-    animation-delay: 120ms;
-  }
-  .stagger-4 {
-    animation-delay: 160ms;
+  .shadow-lift {
+    box-shadow: var(--shadow-lift);
   }
 }
 
-@keyframes page-in {
+@keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -189,21 +190,8 @@
   }
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .animate-page-in,
-  .animate-fade-in {
+  .animate-rise {
     animation: none !important;
-  }
-  * {
-    transition-duration: 0.01ms !important;
   }
 }

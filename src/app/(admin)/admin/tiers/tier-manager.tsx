@@ -62,7 +62,7 @@ export function TierManager({ tiers }: { tiers: TierRow[] }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
-      <Card className="animate-page-in overflow-hidden">
+      <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Catalog</CardTitle>
         </CardHeader>
@@ -154,7 +154,7 @@ export function TierManager({ tiers }: { tiers: TierRow[] }) {
         </CardContent>
       </Card>
 
-      <Card className="h-fit animate-page-in stagger-2">
+      <Card className="h-fit ">
         <CardHeader>
           <CardTitle>{editing ? `Edit "${editing.name}"` : "Create tier"}</CardTitle>
         </CardHeader>

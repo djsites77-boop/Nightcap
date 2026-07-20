@@ -20,7 +20,7 @@ export default async function ConnectCalendarPage({ params }: { params: Promise<
     <div>
       <WizardSteps current={2} total={3} />
       <StepMeta>Step 2 of 3 · Connect calendar</StepMeta>
-      <h1 className="mb-2 font-display text-xl font-semibold text-foreground">
+      <h1 className="mb-2 text-xl font-extrabold tracking-tight text-foreground">
         Import your booking calendar
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">

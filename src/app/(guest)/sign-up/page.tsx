@@ -31,45 +31,50 @@ export default function SignUpPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">
-        Create your account
-      </p>
-      <h1 className="mb-1.5 text-balance font-display text-2xl font-semibold text-foreground">
-        Track every night, tax dollar, and renewal.
-      </h1>
-      <p className="mb-6 max-w-[38ch] text-sm text-muted-foreground">
-        Built for Toronto short-term rental hosts. No spreadsheets, no missed 180-night cap.
-      </p>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Get started</p>
+        <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+          Your nights, covered
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Built for hosts — night caps, tax ledgers, and renewals in one calm place.
+        </p>
+      </div>
 
-      <div className="mb-4 flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="name">Full name</Label>
-        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="name" required autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <div className="mb-4 flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
-      <div className="mb-2 flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           type="password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
 
-      {error && <p className="mb-3 text-sm text-status-risk">{error}</p>}
+      {error && (
+        <p className="rounded-2xl bg-status-risk-soft px-3 py-2 text-sm font-semibold text-status-risk" role="alert">
+          {error}
+        </p>
+      )}
 
-      <Button type="submit" className="mt-4 w-full" disabled={pending}>
-        {pending ? "Creating account…" : "Create account →"}
+      <Button type="submit" className="w-full" size="lg" disabled={pending}>
+        {pending ? "Creating…" : "Create account"}
       </Button>
-      <p className="mt-4 text-center text-sm text-subtle-foreground">
+      <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-accent">
+        <Link href="/login" className="font-bold text-accent-strong hover:underline">
           Log in
         </Link>
       </p>

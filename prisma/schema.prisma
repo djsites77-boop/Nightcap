@@ -197,6 +197,12 @@ model Property {
   municipality   Municipality     @relation(fields: [municipalityId], references: [id])
   unitType       PropertyUnitType
 
+  // Cover photo (private storage key) OR map pin from geocoded address —
+  // listing cards always show one of these as a thumbnail.
+  coverImageKey String?
+  latitude      Float?
+  longitude     Float?
+
   // Fix #2: required for the partial-unit bedroom cap rule to be checkable at all.
   bedroomCount Int
   // Fix #2: only meaningful when unitType = partial_unit; the number of bedrooms

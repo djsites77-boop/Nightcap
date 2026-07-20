@@ -12,7 +12,7 @@ export default async function NewPropertyPage() {
     <div>
       <WizardSteps current={1} total={3} />
       <StepMeta>Step 1 of 3 · Add property</StepMeta>
-      <h1 className="mb-6 font-display text-xl font-semibold text-foreground">
+      <h1 className="mb-6 text-xl font-extrabold tracking-tight text-foreground">
         Tell us about the listing
       </h1>
       <NewPropertyForm municipalities={municipalities} action={createProperty} />

@@ -287,3 +287,42 @@ export async function updateBookingRevenue(formData: FormData) {
 
   revalidatePath(`/properties/${booking.propertyId}`);
 }
+
+const COVER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+/** Host-uploaded listing photo — shown on cards instead of the map pin. */
+export async function uploadPropertyCover(formData: FormData) {
+  const session = await requireSession();
+  const propertyId = String(formData.get("propertyId") ?? "");
+  if (!propertyId) throw new Error("Missing property.");
+  await assertOwnsProperty(propertyId, session.user.id);
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a photo.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Photo must be under 5MB.");
+  const mime = file.type || "application/octet-stream";
+  if (!COVER_TYPES.has(mime)) throw new Error("Use a JPG, PNG, or WebP photo.");
+
+  const ext = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : "jpg";
+  const key = `properties/${propertyId}/cover/cover.${ext}`;
+  const buf = Buffer.from(await file.arrayBuffer());
+  await getDocumentStorage().put(key, buf, mime);
+
+  await prisma.property.update({
+    where: { id: propertyId },
+    data: { coverImageKey: key },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.user.id,
+      propertyId,
+      action: "property_cover_uploaded",
+      payload: { key, mimeType: mime, sizeBytes: file.size },
+    },
+  });
+
+  revalidatePath(`/properties/${propertyId}`);
+  revalidatePath("/dashboard");
+}
+

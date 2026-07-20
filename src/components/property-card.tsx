@@ -1,102 +1,94 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { PropertyThumb } from "@/components/property-thumb";
 import type { PropertyStatusView } from "@/lib/property-status";
 import { cn } from "@/lib/utils";
+import { ChevronRight } from "lucide-react";
 
 function fmtMoney(cents: number): string {
-  return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 });
+  return (cents / 100).toLocaleString("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  });
 }
+
+const STATUS_COPY = {
+  ok: "Looking good",
+  warning: "Keep an eye on this",
+  risk: "Needs you now",
+} as const;
 
 export function PropertyCard({
   id,
   nickname,
   address,
   view,
+  thumbSrc,
+  thumbKind,
 }: {
   id: string;
   nickname: string;
   address: string;
   view: PropertyStatusView;
+  thumbSrc: string | null;
+  thumbKind: "photo" | "map" | null;
 }) {
-  const pct = view.cap && view.nightsUsed !== null ? Math.min(1, view.nightsUsed / view.cap) : null;
-  const barColor =
-    view.status === "risk"
-      ? "bg-status-risk"
-      : view.status === "warning"
-        ? "bg-status-warning"
-        : "bg-status-ok";
-  const statusBorder =
-    view.status === "risk"
-      ? "border-l-status-risk"
-      : view.status === "warning"
-        ? "border-l-status-warning"
-        : "border-l-status-ok";
+  const nightsLabel =
+    view.cap != null && view.nightsUsed != null
+      ? `${view.nightsUsed} / ${view.cap} nights`
+      : null;
 
   return (
     <Link
       href={`/properties/${id}`}
       className={cn(
-        "group block rounded-xl border border-border border-l-[3px] bg-surface p-5 shadow-card",
-        "transition-[box-shadow,transform,border-color] duration-200 ease-out",
-        "hover:-translate-y-0.5 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-        statusBorder
+        "group glass flex flex-col overflow-hidden rounded-3xl transition-[transform,box-shadow] duration-200",
+        "hover:-translate-y-1 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-lg font-semibold tracking-tight text-foreground group-hover:text-accent-strong">
-            {nickname}
-          </div>
-          <div className="mt-0.5 truncate text-xs text-subtle-foreground">{address}</div>
-        </div>
-        <Badge variant={view.status}>{view.status}</Badge>
-      </div>
+      <PropertyThumb
+        src={thumbSrc}
+        kind={thumbKind}
+        alt={nickname}
+        className="aspect-[16/10] w-full"
+      />
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {view.cap !== null ? (
-          <div className="text-xs text-muted-foreground">
-            Nights used
-            <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">
-              {view.nightsUsed} / {view.cap}
-            </div>
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-extrabold tracking-tight text-foreground group-hover:text-brand">
+              {nickname}
+            </h3>
+            <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">{address}</p>
           </div>
-        ) : (
-          <div className="text-xs text-muted-foreground">
-            Rooms offered
-            <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">
-              {view.bedroomCap ?? "—"}
-            </div>
+          <Badge variant={view.status}>{STATUS_COPY[view.status]}</Badge>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border pt-3">
+          <div>
+            <p className="text-[11px] font-semibold text-muted-foreground">Nights</p>
+            <p className="text-sm font-extrabold tabular-nums">{nightsLabel ?? "—"}</p>
           </div>
-        )}
-        <div className="text-xs text-muted-foreground">
-          Renewal
-          <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">
-            {view.daysToRenewal !== null ? `${view.daysToRenewal}d` : "—"}
+          <div>
+            <p className="text-[11px] font-semibold text-muted-foreground">Renewal</p>
+            <p className="text-sm font-extrabold tabular-nums">
+              {view.daysToRenewal != null ? `${view.daysToRenewal}d` : "—"}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] font-semibold text-muted-foreground">MAT due</p>
+            <p className="text-sm font-extrabold tabular-nums">
+              {view.matDueCents > 0 ? fmtMoney(view.matDueCents) : "$0"}
+            </p>
           </div>
         </div>
-        <div className="text-xs text-muted-foreground">
-          MAT due
-          <div className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">
-            {view.matDueCents > 0 ? fmtMoney(view.matDueCents) : "—"}
-          </div>
+
+        <div className="mt-3 flex items-center justify-end gap-1 text-xs font-bold text-accent-strong">
+          Open
+          <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
         </div>
       </div>
-
-      {pct !== null && (
-        <div
-          className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-sunken"
-          role="progressbar"
-          aria-valuenow={Math.round(pct * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Night cap ${Math.round(pct * 100)}% used`}
-        >
-          <div
-            className={cn("h-full rounded-full transition-[width] duration-300 ease-out", barColor)}
-            style={{ width: `${pct * 100}%` }}
-          />
-        </div>
-      )}
     </Link>
   );
 }

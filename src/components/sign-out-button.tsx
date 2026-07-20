@@ -12,7 +12,7 @@ export function SignOutButton({ className }: { className?: string }) {
     <Button
       variant="ghost"
       size="sm"
-      className={cn("text-rail-foreground hover:text-rail-foreground-active", className)}
+      className={cn(className)}
       onClick={async () => {
         await authClient.signOut();
         router.push("/login");
@@ -20,7 +20,7 @@ export function SignOutButton({ className }: { className?: string }) {
       }}
     >
       <LogOut />
-      Sign out
+      <span className="hidden sm:inline">Sign out</span>
     </Button>
   );
 }

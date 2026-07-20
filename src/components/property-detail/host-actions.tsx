@@ -10,7 +10,45 @@ import {
   syncPropertyCalendars,
   updateBookingRevenue,
   uploadDocument,
+  uploadPropertyCover,
 } from "@/app/actions/property-detail";
+
+export function CoverPhotoForm({ propertyId }: { propertyId: string }) {
+  const [pending, start] = useTransition();
+  const [error, setError] = React.useState<string | null>(null);
+
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const fd = new FormData(e.currentTarget);
+        setError(null);
+        start(async () => {
+          try {
+            await uploadPropertyCover(fd);
+            e.currentTarget.reset();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Upload failed");
+          }
+        });
+      }}
+    >
+      <input type="hidden" name="propertyId" value={propertyId} />
+      <Input
+        name="file"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        required
+        className="max-w-xs flex-1"
+      />
+      <Button type="submit" size="sm" variant="ghost" disabled={pending}>
+        {pending ? "Uploading…" : "Add cover photo"}
+      </Button>
+      {error ? <p className="w-full text-sm font-semibold text-status-risk">{error}</p> : null}
+    </form>
+  );
+}
 
 export function SyncNowButton({ propertyId }: { propertyId: string }) {
   const [pending, start] = useTransition();

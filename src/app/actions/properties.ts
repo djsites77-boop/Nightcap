@@ -14,6 +14,7 @@ import {
 } from "@/lib/compliance/rules";
 import { ensureInspectionChecklist } from "@/lib/inspection";
 import { ensureMatPeriods } from "@/lib/mat-ledger";
+import { geocodeAddress } from "@/lib/geo";
 
 const createPropertySchema = z
   .object({
@@ -95,6 +96,8 @@ export async function createProperty(formData: FormData) {
     roomsOffered = offered;
   }
 
+  const coords = await geocodeAddress(data.address);
+
   const property = await prisma.property.create({
     data: {
       userId: session.user.id,
@@ -104,6 +107,8 @@ export async function createProperty(formData: FormData) {
       unitType: data.unitType,
       bedroomCount: data.bedroomCount,
       roomsOffered,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
     },
   });
 

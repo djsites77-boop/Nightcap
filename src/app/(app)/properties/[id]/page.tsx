@@ -19,6 +19,7 @@ import {
   DocumentUploadForm,
   ManualBookingForm,
   SyncNowButton,
+  CoverPhotoForm,
 } from "@/components/property-detail/host-actions";
 import { ExpenseForm, DeleteExpenseButton, ExportExpensesCsvButton } from "@/components/property-detail/expense-form";
 import { InventoryAssetForm, InventoryAssetRowActions } from "@/components/property-detail/inventory-form";
@@ -29,6 +30,9 @@ import {
 import { ensureMatPeriods, recomputeMatLedger } from "@/lib/mat-ledger";
 import { ensureInspectionChecklist } from "@/lib/inspection";
 import { resolveEffectiveRule, type ComplianceRuleRow } from "@/lib/compliance/rules";
+import { ensurePropertyLocation } from "@/lib/property-location";
+import { resolvePropertyThumbUrl } from "@/lib/property-thumb";
+import { PropertyThumb } from "@/components/property-thumb";
 
 function fmtMoney(n: number): string {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -50,6 +54,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   const year = new Date().getUTCFullYear();
   await ensureInspectionChecklist(id);
   await ensureMatPeriods(id, year);
+  await ensurePropertyLocation(id);
   const { boundaryCrossingBookingIds } = await recomputeMatLedger(id, year);
 
   const property = await prisma.property.findUniqueOrThrow({
@@ -67,6 +72,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   });
 
   const view = await getPropertyStatusView(id);
+  const thumb = await resolvePropertyThumbUrl(property);
   const erroredConnection = property.calendarConnections.find((c) => c.syncStatus === "error");
 
   const occupancyRules = await prisma.complianceRule.findMany({
@@ -89,31 +95,48 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     property.matPeriods.find((p) => p.status === "due")?.rateApplied ??
     property.matPeriods.at(-1)?.rateApplied;
 
+  const statusCopy =
+    view.status === "ok" ? "Looking good" : view.status === "warning" ? "Keep an eye on this" : "Needs you now";
+
   return (
     <div>
       <Link
         href="/dashboard"
-        className="mb-3.5 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="size-3.5" /> All properties
+        <ArrowLeft className="size-3.5" /> Home
       </Link>
 
-      <div className="mb-1 flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-2xl font-semibold text-foreground">{property.nickname}</h1>
-        <Badge variant={view.status}>{view.status}</Badge>
+      <div className="mb-6 overflow-hidden rounded-3xl glass">
+        <PropertyThumb
+          src={thumb?.src ?? null}
+          kind={thumb?.kind ?? null}
+          alt={property.nickname}
+          className="aspect-[21/9] w-full sm:aspect-[2.4/1]"
+        />
+        <div className="space-y-3 p-5 sm:p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+              {property.nickname}
+            </h1>
+            <Badge variant={view.status}>{statusCopy}</Badge>
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {property.address} · {property.unitType === "entire_home" ? "Entire home" : "Partial unit"} ·{" "}
+            {property.municipality.name}
+          </p>
+          <CoverPhotoForm propertyId={property.id} />
+        </div>
       </div>
-      <p className="mb-5 text-sm text-subtle-foreground">
-        {property.address} · {property.unitType === "entire_home" ? "Entire home" : "Partial unit"}
-      </p>
 
       {erroredConnection && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-status-warning bg-status-warning-soft p-4">
+        <div className="mb-4 flex items-start gap-3 rounded-3xl border border-status-warning/40 bg-status-warning-soft p-4">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-status-warning" />
           <div className="text-sm">
-            <p className="font-semibold text-foreground">Sync paused — last fetch returned no events</p>
+            <p className="font-bold text-foreground">Calendar sync paused</p>
             <p className="mt-0.5 text-muted-foreground">
-              Treated as a feed error, not a mass cancellation. Bookings unchanged since{" "}
-              {erroredConnection.lastSyncedAt ? fmtDate(erroredConnection.lastSyncedAt) : "last known good sync"}.
+              Last fetch returned no events — bookings unchanged since{" "}
+              {erroredConnection.lastSyncedAt ? fmtDate(erroredConnection.lastSyncedAt) : "the last good sync"}.
             </p>
             <div className="mt-2">
               <RetrySyncButton calendarConnectionId={erroredConnection.id} />
@@ -125,16 +148,16 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="mat">MAT Ledger</TabsTrigger>
+          <TabsTrigger value="mat">Tax</TabsTrigger>
           <TabsTrigger value="checklist">Checklist</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="documents">Docs</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="expenses">Expenses</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-5">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr]">
             <div className="flex flex-col gap-4">
               <Card>
                 <CardHeader>
@@ -144,23 +167,20 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       : "Room-rental cap"}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center pt-3">
+                <CardContent className="flex flex-col items-center pt-4 pb-6">
                   {property.unitType === "entire_home" ? (
-                    <>
-                      <NightGauge nightsUsed={view.nightsUsed ?? 0} cap={view.cap ?? 1} status={view.status} />
-                      <Badge variant={view.status} className="mt-3">
-                        {view.status}
-                      </Badge>
-                    </>
+                    <NightGauge
+                      nightsUsed={view.nightsUsed ?? 0}
+                      cap={view.cap ?? 1}
+                      status={view.status}
+                      size="lg"
+                    />
                   ) : (
-                    <div className="flex w-full items-center gap-3">
-                      <span className="font-mono text-3xl font-semibold tabular-nums">
-                        {property.roomsOffered ?? "—"}
-                      </span>
-                      <span className="text-xs text-subtle-foreground">
+                    <div className="py-6 text-center">
+                      <p className="text-5xl font-extrabold tabular-nums">{property.roomsOffered ?? "—"}</p>
+                      <p className="mt-2 text-sm font-semibold text-muted-foreground">
                         of {view.bedroomCap ?? "—"} bedrooms allowed
-                        <br />({property.bedroomCount}-bedroom unit, max 3 or bedrooms − 1)
-                      </span>
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -198,8 +218,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       Occupancy
                       {adultsPerBedroom != null ? ` (max ${adultsPerBedroom} adults/bedroom)` : ""}:
                     </b>{" "}
-                    not tracked — iCal sync provides dates only, no guest count. Connect a Hospitable
-                    or Guesty account to enable this check automatically.
+                    not tracked automatically — calendar sync gives dates only, not guest counts.
                   </Advisory>
                   <Advisory>
                     Any booking spanning a calendar-year or MAT-period boundary (e.g. a New Year&apos;s stay)
@@ -549,7 +568,7 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: "risk" | "warning" }
 
 function Advisory({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`flex items-start gap-2 rounded-lg border border-dashed border-border-strong bg-surface-alt p-3 text-xs text-muted-foreground ${className}`}>
+    <div className={`flex items-start gap-2 rounded-2xl border border-dashed border-border-strong bg-surface-alt/80 p-3.5 text-xs leading-relaxed text-muted-foreground ${className}`}>
       <Info className="mt-0.5 size-3.5 shrink-0 text-subtle-foreground" />
       <span>{children}</span>
     </div>

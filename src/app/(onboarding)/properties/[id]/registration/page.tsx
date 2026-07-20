@@ -17,7 +17,7 @@ export default async function RegistrationPage({ params }: { params: Promise<{ i
     <div>
       <WizardSteps current={3} total={3} />
       <StepMeta>Step 3 of 3 · Registration</StepMeta>
-      <h1 className="mb-2 font-display text-xl font-semibold text-foreground">
+      <h1 className="mb-2 text-xl font-extrabold tracking-tight text-foreground">
         Add your registration details
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">

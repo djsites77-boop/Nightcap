@@ -1,14 +1,16 @@
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { ensureSubscription, daysSince } from "@/lib/subscription";
-import { PMS_PROVIDERS, isPmsProviderConfigured, type PmsProviderKey } from "@/lib/pms/config";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 
 function fmtMoney(cents: number): string {
-  return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 2 });
+  return (cents / 100).toLocaleString("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 2,
+  });
 }
 
 export default async function SettingsPage() {
@@ -17,109 +19,69 @@ export default async function SettingsPage() {
     ensureSubscription(session.user.id),
     prisma.property.count({ where: { userId: session.user.id, archivedAt: null } }),
   ]);
-  // Billed off the subscription's snapshotted price, not the live catalog —
-  // catalog edits in /admin/tiers don't reprice existing hosts until an admin
-  // re-assigns their tier.
   const estimateCents = subscription.pricePerPropertyCents * propertyCount;
-
-  const pmsConnections = await prisma.pmsConnection.findMany({ where: { userId: session.user.id } });
-  const providerKeys = Object.keys(PMS_PROVIDERS) as PmsProviderKey[];
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Account"
-        title="Settings"
-        description="Your profile, plan snapshot, and PMS connections."
-      />
+      <PageHeader title="Account" description="You and your plan." />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="animate-page-in">
+        <Card>
           <CardHeader>
             <CardTitle>Profile</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 pt-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">Name</span>
-              <span className="font-semibold">{session.user.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">Email</span>
-              <span className="font-semibold">{session.user.email}</span>
+          <CardContent className="space-y-3 pt-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-14 items-center justify-center rounded-full bg-brand text-lg font-extrabold text-white">
+                {session.user.name
+                  .split(" ")
+                  .map((p) => p[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
+              <div>
+                <p className="font-extrabold text-foreground">{session.user.name}</p>
+                <p className="text-sm text-muted-foreground">{session.user.email}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Plan</CardTitle>
+            <CardTitle>Your plan</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 pt-3 text-sm">
+          <CardContent className="space-y-3 pt-3">
             <div className="flex items-center justify-between">
-              <span className="text-subtle-foreground">Tier</span>
-              <Badge variant="neutral">{subscription.tier.name}</Badge>
+              <span className="text-sm text-muted-foreground">Tier</span>
+              <Badge variant="neutral" dot={false}>
+                {subscription.tier.name}
+              </Badge>
             </div>
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">Properties</span>
-              <span className="font-mono font-semibold tabular-nums">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Listings</span>
+              <span className="font-extrabold tabular-nums">
                 {propertyCount}
-                {subscription.propertyLimit !== null ? ` / ${subscription.propertyLimit}` : " (unlimited)"}
+                {subscription.propertyLimit != null ? ` / ${subscription.propertyLimit}` : " · unlimited"}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">Rate</span>
-              <span className="font-mono font-semibold tabular-nums">
-                {fmtMoney(subscription.pricePerPropertyCents)}/property/mo
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Rate</span>
+              <span className="font-extrabold tabular-nums">
+                {fmtMoney(subscription.pricePerPropertyCents)}/listing/mo
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">Est. monthly</span>
-              <span className="font-mono font-semibold tabular-nums">{fmtMoney(estimateCents)}</span>
+            <div className="rounded-2xl bg-accent-soft px-4 py-3">
+              <p className="text-xs font-bold text-accent-strong">Estimated monthly</p>
+              <p className="text-2xl font-extrabold tabular-nums text-foreground">
+                {fmtMoney(estimateCents)}
+              </p>
             </div>
-            <div className="flex justify-between">
-              <span className="text-subtle-foreground">On this plan</span>
-              <span className="font-mono font-semibold tabular-nums">{daysSince(subscription.startedAt)} days</span>
-            </div>
-            <p className="mt-2 text-xs text-subtle-foreground">
-              Self-serve upgrades aren&apos;t wired up yet — contact support to change tiers.
+            <p className="text-xs text-muted-foreground">
+              On this plan {daysSince(subscription.startedAt)} days · upgrades come through support for
+              now.
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>PMS integrations (Tier 1 revenue sync)</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 pt-3 text-sm">
-            <p className="text-xs text-subtle-foreground">
-              OAuth connect is implemented and stores encrypted tokens. Reservation pull (the step that
-              fills MAT revenue automatically) is not wired yet — use CSV import or manual revenue entry
-              until then. Requires real developer credentials in the environment.
-            </p>
-            {providerKeys.map((key) => {
-              const provider = PMS_PROVIDERS[key];
-              const configured = isPmsProviderConfigured(key);
-              const connection = pmsConnections.find((c) => c.provider === key);
-              return (
-                <div key={key} className="flex items-center justify-between rounded-lg border border-border px-3.5 py-2.5">
-                  <div>
-                    <div className="font-semibold text-foreground">{provider.label}</div>
-                    {connection ? (
-                      <Badge variant={connection.status === "connected" ? "ok" : "warning"} className="mt-1">
-                        {connection.status}
-                      </Badge>
-                    ) : !configured ? (
-                      <div className="text-xs text-subtle-foreground">
-                        Not available yet — needs {provider.clientIdEnv} configured
-                      </div>
-                    ) : null}
-                  </div>
-                  <Button size="sm" variant="ghost" disabled={!configured} asChild={configured}>
-                    {configured ? <a href={`/api/pms/${key}/connect`}>{connection ? "Reconnect" : "Connect"}</a> : <span>Connect</span>}
-                  </Button>
-                </div>
-              );
-            })}
           </CardContent>
         </Card>
       </div>

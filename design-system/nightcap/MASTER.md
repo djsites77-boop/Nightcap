@@ -1,90 +1,47 @@
-# Design System Master File
+# Design System Master — Nightcap (consumer host app)
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+> Curated from ui-ux-pro-max for a **consumer lifestyle** product — not enterprise BI.
+> CLI defaults (pink parenting / dark-tech green) overridden for brand fit.
 
----
-
-**Project:** Nightcap
-**Generated:** 2026-07-19 (curated — CLI defaults overridden)
-**Category:** Civic compliance SaaS + Admin / Data-Dense Dashboard
-
-> The ui-ux-pro-max CLI suggested pink/purple dark palettes. Those are rejected:
-> Nightcap’s brand is cool paper + deep teal + navy rail (civic ledger, not
-> fintech-gold or startup-indigo). Status greens/oranges/reds stay reserved for
-> compliance signals and must never be used as brand accent.
+**Product:** Nightcap — personal STR compliance companion for hosts  
+**Style:** Soft glass + lifestyle visual dashboard (gauges, charts, big status)  
+**Audience:** Individual hosts on mobile first  
+**Anti-patterns:** Corporate side rails, uppercase micro-labels everywhere, text-only KPI walls, purple/indigo startup themes, cream+terracotta stacks
 
 ---
 
-## Global Rules
+## Color
 
-### Style
-- **Host app:** Executive Dashboard — large KPIs, traffic-light status, scannable property cards
-- **Admin:** Data-Dense Dashboard — compact tables, sticky headers, dense but readable type, filterable lists
-- **Mode:** Light default + full dark tokens (system-aware)
-- **Anti-patterns:** Ornate decoration, emoji icons, purple/indigo themes, warm-cream+terracotta stacks, hover-only interactions
+| Role | Light | Dark |
+|------|-------|------|
+| Background | `#EEF1F7` soft dusk paper | `#0A0E1A` |
+| Surface / glass | `rgba(255,255,255,0.72)` | `rgba(22,28,45,0.72)` |
+| Foreground | `#121826` | `#F1F4FA` |
+| Muted | `#5B657A` | `#9AA3B8` |
+| Brand (night) | `#1A2240` | `#E8ECF8` |
+| Accent (honey) | `#E8A017` | `#F0B429` |
+| Accent soft | `#FFF4D6` | `#3A2E12` |
+| OK / Warn / Risk | `#16A34A` / `#E89A3C` / `#E5484D` | lighter variants |
 
-### Color Palette (authoritative)
+Accent is honey/amber (evening drink) — never status-green, never purple.
 
-| Role | Light | Dark | Token |
-|------|-------|------|-------|
-| Background | `#f5f7fa` | `#0b0f1a` | `--background` |
-| Surface | `#ffffff` | `#131a2b` | `--surface` |
-| Foreground | `#12172b` | `#e8eaf0` | `--foreground` |
-| Muted text | `#545f70` | `#a7afc0` | `--muted-foreground` |
-| Accent | `#0f6e6e` | `#3fbdb5` | `--accent` |
-| Accent soft | `#e3f1f0` | `#16302e` | `--accent-soft` |
-| Rail | `#12172b` | `#080b14` | `--rail-background` |
-| Status OK | `#0ca30c` | `#4caf6d` | `--status-ok` |
-| Status Warning | `#ec835a` | `#d3a32e` | `--status-warning` |
-| Status Risk | `#d03b3b` | `#e5726b` | `--status-risk` |
+## Typography
+- **Display / UI:** Plus Jakarta Sans (Friendly SaaS pairing)
+- **Figures:** Plus Jakarta Sans tabular + mono fallback for money
+- Headlines large and conversational; avoid ALL-CAPS micro labels as primary UI chrome
 
-Accent sits far from the status trio so it is never mistaken for a compliance signal.
+## Layout
+- **Mobile:** Bottom tab bar (≤4 items) + compact top brand strip
+- **Desktop:** Horizontal top nav, content max ~1080px, generous whitespace
+- One primary visual per section (gauge / chart / status orb) — not walls of text
 
-### Typography
-- **Display (headings):** Source Serif 4 — ordinance / ledger authority
-- **Body:** Public Sans — USWDS civic digital services
-- **Mono (figures):** IBM Plex Mono — tabular nums for MAT, nights, money
-- Base body ≥16px; table cells 13–14px; micro labels 11–12px uppercase tracking
+## Charts (from skill)
+- Night cap → **Gauge** (performance vs target) + numeric
+- Portfolio nights over months → **Area / line**
+- MAT owed → big number + mini spark if history exists
 
-### Spacing & Density
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | 4px | Tight gaps |
-| `--space-sm` | 8px | Icon gaps |
-| `--space-md` | 16px | Standard padding |
-| `--space-lg` | 24px | Section padding |
-| `--space-xl` | 32px | Large gaps |
-| Admin card pad | 12–16px | Data-dense |
-| Host card pad | 20–24px | Executive breathing room |
-| Table row | ~40–44px min height | Touch-friendly |
-| Sidebar | 240px | Desktop rail |
+## Motion
+150–280ms ease-out; page fade; gauge draw; respect reduced-motion
 
-### Motion
-- Micro-interactions: 150–250ms ease-out
-- Page enter: 200ms fade + 4px translateY
-- Prefer transform/opacity only
-- Respect `prefers-reduced-motion`
-
-### Effects
-- Row highlight on hover (admin tables)
-- KPI cards: subtle border + soft shadow, hover lift via transform
-- Focus rings: 2px accent, 2px offset
-- No glow, no glassmorphism, no multi-layer shadows
-
-### UX Must-Haves
-1. Mobile nav reachable (drawer / sheet) — not desktop-only sidebar
-2. Tables wrap in `overflow-x-auto`
-3. Visible labels on all inputs; errors near fields
-4. Loading feedback on every async button
-5. Touch targets ≥44px
-6. `cursor-pointer` on clickable elements
-7. Color never sole status indicator (badge text + soft fill)
-
----
-
-## Page Overrides
-
-- `pages/admin.md` — denser tables, KPI strip, compact forms
-- `pages/dashboard.md` — executive KPI row + property grid
+## Effects
+Frosted glass panels (`backdrop-blur`), soft ambient gradients, subtle depth — not heavy shadows or glow spam

@@ -26,7 +26,7 @@ export default async function MunicipalityRulesPage({
       >
         <ArrowLeft className="size-3.5" /> All jurisdictions
       </Link>
-      <h1 className="mb-1 font-display text-2xl font-semibold text-foreground">
+      <h1 className="mb-1 text-2xl font-extrabold tracking-tight text-foreground">
         {municipality.name}, {municipality.province}
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">

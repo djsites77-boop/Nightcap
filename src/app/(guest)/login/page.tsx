@@ -30,35 +30,49 @@ export default function LoginPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">
-        Welcome back
-      </p>
-      <h1 className="mb-6 font-display text-2xl font-semibold text-foreground">Log in to Nightcap</h1>
-
-      <div className="mb-4 flex flex-col gap-1.5">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Welcome back</p>
+        <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-foreground">
+          Log in
+        </h1>
       </div>
-      <div className="mb-2 flex flex-col gap-1.5">
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           type="password"
+          autoComplete="current-password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
 
-      {error && <p className="mb-3 text-sm text-status-risk">{error}</p>}
+      {error && (
+        <p className="rounded-2xl bg-status-risk-soft px-3 py-2 text-sm font-semibold text-status-risk" role="alert">
+          {error}
+        </p>
+      )}
 
-      <Button type="submit" className="mt-4 w-full" disabled={pending}>
-        {pending ? "Logging in…" : "Log in →"}
+      <Button type="submit" className="w-full" size="lg" disabled={pending}>
+        {pending ? "Logging in…" : "Continue"}
       </Button>
-      <p className="mt-4 text-center text-sm text-subtle-foreground">
-        New to Nightcap?{" "}
-        <Link href="/sign-up" className="font-semibold text-accent">
+      <p className="text-center text-sm text-muted-foreground">
+        New here?{" "}
+        <Link href="/sign-up" className="font-bold text-accent-strong hover:underline">
           Create an account
         </Link>
       </p>

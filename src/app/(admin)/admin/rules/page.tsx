@@ -60,7 +60,7 @@ export default async function AdminRulesPage() {
           </CardContent>
         </Card>
 
-        <Card className="h-fit animate-page-in stagger-2">
+        <Card className="h-fit ">
           <CardHeader>
             <CardTitle>Add municipality</CardTitle>
           </CardHeader>

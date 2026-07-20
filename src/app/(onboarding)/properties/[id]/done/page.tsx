@@ -15,7 +15,7 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
       <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-subtle-foreground">
         All set
       </p>
-      <h1 className="mb-2 font-display text-xl font-semibold text-foreground">
+      <h1 className="mb-2 text-xl font-extrabold tracking-tight text-foreground">
         {property.nickname} is set up.
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
