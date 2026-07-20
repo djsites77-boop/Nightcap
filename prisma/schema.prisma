@@ -128,9 +128,27 @@ model Municipality {
 
   complianceRules ComplianceRule[]
   properties      Property[]
+  newsCache       RegionalNewsCache?
 
   @@unique([name, province])
   @@map("municipality")
+}
+
+// ---------------------------------------------------------------------------
+// Regional STR news, shown on the dashboard for whichever municipalities a
+// host's properties are in. Fetched via an AI web search (see
+// lib/regional-news.ts) and cached rather than re-searched on every page
+// load — one row per municipality, refreshed lazily once stale.
+// ---------------------------------------------------------------------------
+
+model RegionalNewsCache {
+  id             String       @id @default(cuid())
+  municipalityId String       @unique
+  municipality   Municipality @relation(fields: [municipalityId], references: [id], onDelete: Cascade)
+  items          Json
+  fetchedAt      DateTime     @default(now())
+
+  @@map("regional_news_cache")
 }
 
 model ComplianceRule {
