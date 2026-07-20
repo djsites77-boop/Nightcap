@@ -201,6 +201,8 @@ model Property {
   documents           Document[]
   auditLogEntries     AuditLog[]
   pmsListingLinks     PmsListingLink[]
+  expenses            Expense[]
+  inventoryAssets     InventoryAsset[]
 
   @@map("property")
 }
@@ -352,6 +354,7 @@ enum DocumentType {
   fire_safety_cert
   insurance
   floor_plan
+  receipt
   other
 }
 
@@ -367,7 +370,114 @@ model Document {
   uploadedAt DateTime     @default(now())
   expiryDate DateTime?
 
+  expense Expense?
+
   @@map("document")
+}
+
+// ---------------------------------------------------------------------------
+// Expenses — lets a host log what they spent per property so it's organized
+// come tax time. Nightcap deliberately does not file or remit anything here;
+// it just captures and categorizes so the host (or their accountant) has a
+// clean export instead of a shoebox of receipts. Categories follow CRA's
+// T776 rental-expense groupings, with a couple of STR-specific additions
+// (cleaning, platform_fees) that don't have a clean T776 analog.
+// ---------------------------------------------------------------------------
+
+enum ExpenseCategory {
+  advertising
+  insurance
+  interest_mortgage
+  professional_fees
+  management_fees
+  repairs_maintenance
+  supplies
+  property_tax
+  travel
+  utilities
+  cleaning
+  platform_fees
+  other
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  propertyId  String
+  property    Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory
+  description String
+  amountCents Int
+  incurredOn  DateTime
+  vendorName  String?
+
+  // Optional: the uploaded receipt, stored the same encrypted-at-rest way as
+  // every other Document (spec §12) — never a second, weaker storage path.
+  receiptDocumentId String?   @unique
+  receiptDocument   Document? @relation(fields: [receiptDocumentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([propertyId, incurredOn])
+  @@map("expense")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory — physical furnishings/equipment tracking, separate from
+// InspectionItem (which is regulatory/safety compliance, not property).
+// Useful for insurance claims, damage disputes with a guest, and restocking
+// between turnovers. No tenant sign-off concept here (unlike a long-term
+// rental's move-in/move-out) — STR turnover is per-booking, not per-lease.
+// ---------------------------------------------------------------------------
+
+enum InventoryCategory {
+  appliance
+  furniture
+  electronics
+  linens_bedding
+  kitchenware
+  safety_equipment
+  outdoor
+  other
+}
+
+enum InventoryCondition {
+  excellent
+  good
+  fair
+  poor
+  damaged
+}
+
+enum InventoryStatus {
+  active
+  needs_repair
+  replaced
+  removed
+}
+
+model InventoryAsset {
+  id         String             @id @default(cuid())
+  propertyId String
+  property   Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name       String
+  category   InventoryCategory
+  condition  InventoryCondition @default(good)
+  status     InventoryStatus    @default(active)
+
+  brand              String?
+  model              String?
+  serialNumber       String?
+  purchaseDate       DateTime?
+  purchasePriceCents Int?
+  warrantyExpiryDate DateTime?
+  locationInProperty String?
+  notes              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@map("inventory_asset")
 }
 
 // ---------------------------------------------------------------------------
