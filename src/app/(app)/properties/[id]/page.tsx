@@ -224,10 +224,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     tone={view.daysToRenewal !== null && view.daysToRenewal < 14 ? "risk" : view.daysToRenewal !== null && view.daysToRenewal < 30 ? "warning" : undefined}
                   />
                   <Advisory>
-                    These details come from what you entered for {cityName} — most municipalities
-                    don&apos;t publish a registration API hosts can call, so Nitecap tracks the expiry
-                    countdown from your numbers. It does not verify status with the city. Upload your
-                    confirmation below (or in Docs) to keep proof on file.
+                    The countdown uses the expiry date you entered — we can&apos;t check with{" "}
+                    {cityName} whether your registration is still valid. Upload your confirmation
+                    below (or in Docs) so you have proof on file.
                   </Advisory>
                   {registrationDocs.length > 0 ? (
                     <div className="rounded-2xl border border-border bg-surface-alt/40 px-3 py-2.5">

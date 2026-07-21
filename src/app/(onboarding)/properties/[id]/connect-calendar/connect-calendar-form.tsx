@@ -77,13 +77,17 @@ export function ConnectCalendarForm({
           </Select>
         </div>
         <div className="mb-4 flex flex-col gap-1.5">
-          <Label htmlFor="icalUrl">iCal export URL</Label>
+          <Label htmlFor="icalUrl">This listing&apos;s iCal export URL</Label>
           <Input
             id="icalUrl"
             name="icalUrl"
             required
             placeholder="https://www.airbnb.ca/calendar/ical/…"
           />
+          <p className="text-xs text-subtle-foreground">
+            In Airbnb: Calendar → Availability settings → Export calendar. Use that listing&apos;s
+            link only — not another property&apos;s.
+          </p>
         </div>
 
         <div className="mb-5 flex items-start gap-2 text-xs text-subtle-foreground">

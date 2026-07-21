@@ -22,13 +22,18 @@ export default async function ConnectCalendarPage({ params }: { params: Promise<
     <WizardPanel>
       <WizardNav backHref="/dashboard" backLabel="Home" cancelHref="/dashboard" />
       <WizardSteps current={2} total={3} />
-      <StepMeta>Step 2 of 3 · Connect calendar</StepMeta>
+      <StepMeta>Step 2 of 3 · Connect calendar · {property.nickname}</StepMeta>
       <h1 className="mb-2 text-2xl font-extrabold tracking-tight text-foreground">
-        Import your booking calendar
+        Link the calendar for {property.nickname}
       </h1>
+      <p className="mb-2 text-sm text-muted-foreground">
+        Paste the iCal export URL for <span className="font-semibold text-foreground">this</span>{" "}
+        Airbnb or VRBO listing — the one that matches {property.nickname}. That&apos;s how we know
+        which of your listings is which. Dates only (no prices), so it won&apos;t fill your{" "}
+        {taxLabel} ledger yet.
+      </p>
       <p className="mb-6 text-sm text-muted-foreground">
-        Paste the iCal export URL from Airbnb or VRBO. This gives us dates for the night-cap counter —
-        not price, so it won&apos;t affect your {taxLabel} ledger yet.
+        Have several places? Finish this one, then add the next property with its own calendar URL.
       </p>
       <ConnectCalendarForm action={action} existing={property.calendarConnections} propertyId={id} />
     </WizardPanel>

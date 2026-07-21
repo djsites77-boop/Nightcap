@@ -25,14 +25,13 @@ export default async function RegistrationPage({ params }: { params: Promise<{ i
         cancelHref="/dashboard"
       />
       <WizardSteps current={3} total={3} />
-      <StepMeta>Step 3 of 3 · Registration</StepMeta>
+      <StepMeta>Step 3 of 3 · Registration · {property.nickname}</StepMeta>
       <h1 className="mb-2 text-2xl font-extrabold tracking-tight text-foreground">
-        Add your registration details
+        Registration for {property.nickname}
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Self-reported — {cityPossessive} registration-verification API isn&apos;t typically open to
-        third-party tools, so Nitecap tracks your countdown but can&apos;t confirm status with the
-        municipality.
+        Enter the number and dates from your {cityPossessive} registration. We&apos;ll remind you
+        before it expires — we can&apos;t look it up with the city for you.
       </p>
       <RegistrationForm action={action} propertyId={id} />
     </WizardPanel>

@@ -48,9 +48,13 @@ export default async function NewPropertyPage() {
       <WizardNav cancelHref="/dashboard" cancelLabel="Cancel" />
       <WizardSteps current={1} total={3} />
       <StepMeta>Step 1 of 3 · Add property</StepMeta>
-      <h1 className="mb-6 text-2xl font-extrabold tracking-tight text-foreground">
+      <h1 className="mb-2 text-2xl font-extrabold tracking-tight text-foreground">
         Tell us about the listing
       </h1>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Add one place at a time. After this setup you can add your next listing the same way —
+        each gets its own calendar link so we don&apos;t mix them up.
+      </p>
       <NewPropertyForm municipalities={options} action={createProperty} />
     </WizardPanel>
   );

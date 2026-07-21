@@ -19,11 +19,12 @@ export default async function DonePage({ params }: { params: Promise<{ id: strin
         {property.nickname} is set up.
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Add another property now, or head to your dashboard — you can always add more later.
+        Listing more than one place? Add the next one now and paste that listing&apos;s own calendar
+        URL. Or go to the dashboard — you can add more anytime.
       </p>
       <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button variant="ghost" asChild className="sm:flex-1">
-          <Link href="/properties/new">Add another</Link>
+          <Link href="/properties/new">Add another listing</Link>
         </Button>
         <Button asChild className="sm:flex-1">
           <Link href="/dashboard">Go to dashboard</Link>
