@@ -395,10 +395,11 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   return (
                     <div
                       key={item.id}
+                      data-testid={`checklist-row-${item.id}`}
                       className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <InspectionCheckbox itemId={item.id} completed={item.completed} />
+                        <InspectionCheckbox itemId={item.id} completed={item.completed} label={label} />
                         <div>
                           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                             {label}
