@@ -18,43 +18,27 @@ export async function PropertyMapEmbed({
   className?: string;
 }) {
   const key = await getPlatformApiKeyPlaintext("google_maps");
-  const staticSrc = mapThumbnailUrl(latitude, longitude, 640, 360);
 
-  if (!key) {
+  if (key) {
+    const params = new URLSearchParams({
+      key,
+      q: `${latitude},${longitude}`,
+      zoom: "15",
+    });
+
     return (
-      <div className={className}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={staticSrc} alt={`Map of ${label}`} className="h-full w-full object-cover" />
-      </div>
-    );
-  }
-
-  const params = new URLSearchParams({
-    key,
-    q: `${latitude},${longitude}`,
-    zoom: "15",
-  });
-
-  return (
-    <div className={`relative ${className ?? ""}`}>
-      {/* Static image underneath — visible if Embed iframe fails to paint */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={staticSrc}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-cover"
-      />
       <iframe
         title={`Map of ${label}`}
         src={`https://www.google.com/maps/embed/v1/place?${params.toString()}`}
-        className="relative h-full w-full border-0 bg-transparent"
+        className={`h-full w-full border-0 ${className ?? ""}`}
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
         allowFullScreen
       />
-    </div>
-  );
+    );
+  }
+
+  return <PropertyMapPlaceholder className={className} />;
 }
 
 export function PropertyMapPlaceholder({ className }: { className?: string }) {
