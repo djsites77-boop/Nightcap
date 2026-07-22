@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, Info } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ShieldCheck, Info } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { getPropertyStatusView } from "@/lib/property-status";
@@ -15,19 +15,14 @@ import { InspectionCheckbox } from "@/components/property-detail/inspection-chec
 import { ViewDocumentButton } from "@/components/property-detail/view-document-button";
 import { CsvImportForm } from "@/components/property-detail/csv-import-form";
 import {
+  BookingRevenueForm,
   DocumentUploadForm,
   ManualBookingForm,
   SyncNowButton,
   CoverPhotoForm,
   RegistrationProofForm,
 } from "@/components/property-detail/host-actions";
-import { BookingsPanel } from "@/components/property-detail/bookings-panel";
-import {
-  DeleteExpenseButton,
-  ExpenseForm,
-  ExpenseReceiptCell,
-  ExportExpensesCsvButton,
-} from "@/components/property-detail/expense-form";
+import { ExpenseForm, DeleteExpenseButton, ExportExpensesCsvButton } from "@/components/property-detail/expense-form";
 import { InventoryAssetForm, InventoryAssetRowActions } from "@/components/property-detail/inventory-form";
 import {
   CustomChecklistItemForm,
@@ -43,7 +38,6 @@ import { PropertyMapEmbed, PropertyMapPlaceholder } from "@/components/property-
 import {
   accommodationTaxShortLabel,
 } from "@/lib/accommodation-tax";
-import { documentTypeLabel, formatFileSize } from "@/lib/document-labels";
 
 function fmtMoney(n: number): string {
   return n.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -77,9 +71,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
       matPeriods: { orderBy: { periodStart: "asc" } },
       inspectionItems: { orderBy: [{ isCustom: "asc" }, { itemKey: "asc" }] },
       documents: { orderBy: { uploadedAt: "desc" } },
-      expenses: { orderBy: { incurredOn: "desc" }, include: { tags: { include: { tag: true } } } },
+      expenses: { orderBy: { incurredOn: "desc" } },
       inventoryAssets: { orderBy: { createdAt: "desc" } },
-      complianceViolations: { where: { acknowledgedAt: null }, orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -140,17 +133,17 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             src={thumb?.src ?? null}
             kind={thumb?.kind ?? null}
             alt={property.nickname}
-            className="aspect-[16/9] w-full"
+            className="aspect-[21/9] w-full sm:aspect-[2.4/1]"
           />
         ) : property.latitude != null && property.longitude != null ? (
           <PropertyMapEmbed
             latitude={property.latitude}
             longitude={property.longitude}
             label={property.nickname}
-            className="aspect-[16/9] w-full"
+            className="aspect-[21/9] w-full sm:aspect-[2.4/1]"
           />
         ) : (
-          <PropertyMapPlaceholder className="aspect-[16/9] w-full" />
+          <PropertyMapPlaceholder className="aspect-[21/9] w-full sm:aspect-[2.4/1]" />
         )}
         <div className="space-y-3 p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-3">
@@ -176,7 +169,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               latitude={property.latitude}
               longitude={property.longitude}
               label={property.nickname}
-              className="aspect-[16/9] w-full"
+              className="aspect-[16/9] w-full sm:aspect-[2.2/1]"
             />
           </CardContent>
         </Card>
@@ -194,33 +187,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             <div className="mt-2">
               <RetrySyncButton calendarConnectionId={erroredConnection.id} />
             </div>
-          </div>
-        </div>
-      )}
-
-      {property.complianceViolations.length > 0 && (
-        <div className="mb-4 flex items-start gap-3 rounded-3xl border border-status-risk/40 bg-status-risk-soft p-4">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-status-risk" />
-          <div className="text-sm flex-1">
-            <p className="font-bold text-foreground">Compliance violation flagged</p>
-            <div className="mt-2 space-y-1.5">
-              {property.complianceViolations.map((v) => (
-                <p key={v.id} className="text-muted-foreground">
-                  {v.violationType === "EXCEEDS_BEDROOM_CAP"
-                    ? `Offering ${v.value} rooms, but the cap is ${v.limit} for this property`
-                    : v.violationType === "EXCEEDS_NIGHT_CAP"
-                      ? `${v.value} nights used, but annual cap is ${v.limit}`
-                      : v.violationType === "MISSING_RENEWAL"
-                        ? "Registration renewal is overdue"
-                        : v.violationType === "OVERDUE_INSPECTION"
-                          ? "An inspection item is overdue"
-                          : `${v.violationType}: ${v.value} (limit: ${v.limit})`}
-                </p>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              These violations are flagged for your awareness. Fix them to stay fully compliant.
-            </p>
           </div>
         </div>
       )}
@@ -457,11 +423,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   return (
                     <div
                       key={item.id}
-                      data-testid={`checklist-row-${item.id}`}
                       className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <InspectionCheckbox itemId={item.id} completed={item.completed} label={label} />
+                        <InspectionCheckbox itemId={item.id} completed={item.completed} />
                         <div>
                           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                             {label}
@@ -509,19 +474,12 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 <div className="flex flex-col">
                   {property.documents.map((doc) => (
                     <div key={doc.id} className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground">
-                          {documentTypeLabel(doc.docType, doc.label)}
+                      <div>
+                        <div className="text-sm font-semibold text-foreground">{doc.fileName}</div>
+                        <div className="text-xs text-subtle-foreground">
+                          {doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(0)} KB
+                          {doc.expiryDate && ` · Expires ${fmtDate(doc.expiryDate)}`}
                         </div>
-                        <div className="truncate text-xs text-subtle-foreground">
-                          {doc.fileName}
-                          {" · "}
-                          {formatFileSize(doc.sizeBytes)}
-                          {doc.expiryDate ? ` · Expires ${fmtDate(doc.expiryDate)}` : ""}
-                        </div>
-                        {doc.aiSummary ? (
-                          <p className="mt-1 text-xs leading-snug text-muted-foreground">{doc.aiSummary}</p>
-                        ) : null}
                       </div>
                       <ViewDocumentButton documentId={doc.id} />
                     </div>
@@ -529,6 +487,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </div>
               )}
               <DocumentUploadForm propertyId={property.id} />
+              <div className="mt-4 flex items-start gap-2 text-xs text-subtle-foreground">
+                <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
+                <span>Served via short-lived signed URLs from private storage — not publicly accessible links.</span>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -536,24 +498,51 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <TabsContent value="bookings" className="mt-5">
           <Card>
             <CardHeader>
-              <CardTitle>Bookings</CardTitle>
+              <CardTitle>Synced bookings</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 pt-3">
               <ManualBookingForm propertyId={property.id} />
               <CsvImportForm propertyId={property.id} />
-              <BookingsPanel
-                taxLabel={taxLabel}
-                bookings={property.bookings.map((b) => ({
-                  id: b.id,
-                  checkIn: b.checkIn.toISOString(),
-                  checkOut: b.checkOut.toISOString(),
-                  nights: b.nights,
-                  platform: b.platform,
-                  source: b.source,
-                  grossAmount: b.grossAmount != null ? Number(b.grossAmount) : null,
-                  crossesBoundary: boundarySet.has(b.id),
-                }))}
-              />
+              {property.bookings.length === 0 ? (
+                <p className="text-sm text-subtle-foreground">No bookings yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Check-in</TableHead>
+                      <TableHead>Check-out</TableHead>
+                      <TableHead className="text-right">Nights</TableHead>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {property.bookings.map((b) => (
+                      <TableRow key={b.id}>
+                        <TableCell className="font-mono tabular-nums">
+                          {fmtDate(b.checkIn)}
+                          {boundarySet.has(b.id) ? (
+                            <div className="mt-1 text-[11px] text-status-warning">
+                              Crosses {taxLabel} period — review proration
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="font-mono tabular-nums">{fmtDate(b.checkOut)}</TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">{b.nights}</TableCell>
+                        <TableCell className="capitalize">{b.platform}</TableCell>
+                        <TableCell>{b.source.replace("_", " ")}</TableCell>
+                        <TableCell className="text-right">
+                          <BookingRevenueForm
+                            bookingId={b.id}
+                            grossAmount={b.grossAmount != null ? Number(b.grossAmount) : null}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -565,7 +554,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               <ExportExpensesCsvButton propertyId={property.id} />
             </CardHeader>
             <CardContent className="flex flex-col gap-4 pt-3">
-              <ExpenseForm propertyId={property.id} propertyNickname={property.nickname} />
+              <ExpenseForm propertyId={property.id} />
               {property.expenses.length === 0 ? (
                 <p className="text-sm text-subtle-foreground">No expenses logged yet.</p>
               ) : (
@@ -575,10 +564,8 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       <TableHead>Date</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Description</TableHead>
-                      <TableHead>Tags</TableHead>
-                      <TableHead>Warranty</TableHead>
+                      <TableHead>Vendor</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Receipt</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -587,36 +574,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                       <TableRow key={e.id}>
                         <TableCell className="font-mono tabular-nums">{fmtDate(e.incurredOn)}</TableCell>
                         <TableCell className="capitalize">{e.category.replace(/_/g, " ")}</TableCell>
-                        <TableCell>
-                          <div className="font-semibold text-foreground">{e.description}</div>
-                          {e.vendorName ? (
-                            <div className="text-xs text-muted-foreground">{e.vendorName}</div>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {e.tags.length === 0 ? (
-                              <span className="text-subtle-foreground">—</span>
-                            ) : (
-                              e.tags.map((t) => (
-                                <span
-                                  key={t.tagId}
-                                  className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand"
-                                >
-                                  {t.tag.name}
-                                </span>
-                              ))
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs tabular-nums text-muted-foreground">
-                          {e.warrantyExpiryDate ? fmtDate(e.warrantyExpiryDate) : "—"}
-                        </TableCell>
+                        <TableCell>{e.description}</TableCell>
+                        <TableCell>{e.vendorName ?? "—"}</TableCell>
                         <TableCell className="text-right font-mono tabular-nums">
                           {fmtMoney(e.amountCents / 100)}
-                        </TableCell>
-                        <TableCell>
-                          <ExpenseReceiptCell receiptDocumentId={e.receiptDocumentId} />
                         </TableCell>
                         <TableCell className="text-right">
                           <DeleteExpenseButton expenseId={e.id} />
@@ -627,8 +588,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                 </Table>
               )}
               <Advisory>
-                Drop a receipt to auto-fill vendor, amount, category, tags, and warranty. Tick
-                &ldquo;Also add to inventory&rdquo; for durable purchases — warranty moves to the item.
+                Nitecap tracks and categorizes expenses so they&apos;re organized for tax time — it does
+                not file or remit anything on your behalf. Export the CSV and hand it to your accountant
+                or import it into your tax software.
               </Advisory>
             </CardContent>
           </Card>
@@ -649,7 +611,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Warranty</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Condition / status</TableHead>
                     </TableRow>
@@ -666,9 +627,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                           )}
                         </TableCell>
                         <TableCell className="capitalize">{a.category.replace(/_/g, " ")}</TableCell>
-                        <TableCell className="text-xs tabular-nums text-muted-foreground">
-                          {a.warrantyExpiryDate ? fmtDate(a.warrantyExpiryDate) : "—"}
-                        </TableCell>
                         <TableCell>{a.locationInProperty ?? "—"}</TableCell>
                         <TableCell>
                           <InventoryAssetRowActions assetId={a.id} condition={a.condition} status={a.status} />
