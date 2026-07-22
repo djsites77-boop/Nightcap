@@ -111,13 +111,10 @@ export function LandingPage() {
             />
             <Button asChild size="lg" className="w-full">
               <Link href={address ? `/sign-up?address=${encodeURIComponent(address)}` : "/sign-up"}>
-                See your property on the map
+                Start free
               </Link>
             </Button>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Then set up compliance tracking for free. No card required.
-          </p>
         </div>
         <div className="mt-6 flex justify-center">
           <Button asChild variant="ghost" size="sm">
