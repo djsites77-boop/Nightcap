@@ -20,6 +20,7 @@ export async function getPropertyStatusView(propertyId: string): Promise<Propert
       nightTallies: { where: { calendarYear: new Date().getUTCFullYear() } },
       matPeriods: { where: { status: "due" } },
       inspectionItems: true,
+      rentalUnits: true,
     },
   });
 

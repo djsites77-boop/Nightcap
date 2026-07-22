@@ -15,6 +15,7 @@ import {
 import { ensureInspectionChecklist } from "@/lib/inspection";
 import { ensureMatPeriods } from "@/lib/mat-ledger";
 import { geocodeAddress } from "@/lib/geo";
+import { validatePartialUnitCompliance } from "@/lib/compliance-validator";
 
 const createPropertySchema = z
   .object({
@@ -88,11 +89,7 @@ export async function createProperty(formData: FormData) {
     if (offered < 1) {
       throw new Error("Rooms offered must be at least 1 for a partial-unit listing.");
     }
-    if (offered > cap) {
-      throw new Error(
-        `Rooms offered (${offered}) exceeds the municipal cap of ${cap} for a ${data.bedroomCount}-bedroom unit.`
-      );
-    }
+    // Soft enforcement: allow save even if exceeding cap, but log violation
     roomsOffered = offered;
   }
 
@@ -130,6 +127,35 @@ export async function createProperty(formData: FormData) {
   });
 
   await recomputeNightTally(property.id);
+
+  // For now, store the roomsOffered on the property and create a single RentalUnit
+  // (Future: UI will support multiple RentalUnits per partial-unit property)
+  if (data.unitType === "partial_unit" && roomsOffered) {
+    const rentalUnit = await prisma.rentalUnit.create({
+      data: {
+        propertyId: property.id,
+        name: `${property.nickname} - Room 1`,
+        roomsOffered,
+      },
+    });
+
+    // Validate and log any compliance violations
+    const validation = await validatePartialUnitCompliance(property.id);
+    if (!validation.isCompliant) {
+      // Log but don't block — host still proceeds to onboarding
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          propertyId: property.id,
+          action: "compliance_violation_detected",
+          payload: {
+            violations: validation.violations,
+            rentalUnitId: rentalUnit.id,
+          },
+        },
+      });
+    }
+  }
 
   redirect(`/properties/${property.id}/connect-calendar`);
 }

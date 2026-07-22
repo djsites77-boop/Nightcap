@@ -53,6 +53,8 @@ model User {
   matPeriodsRemitted MatPeriod[]     @relation("MatPeriodRemittedBy")
   pmsConnections     PmsConnection[]
   subscription       Subscription?
+  expenses           Expense[]
+  tags               Tag[]
 
   @@map("user")
 }
@@ -221,17 +223,46 @@ model Property {
   archivedAt DateTime?
 
   calendarConnections CalendarConnection[]
+  rentalUnits         RentalUnit[]
   bookings            Booking[]
   nightTallies        NightTally[]
   matPeriods          MatPeriod[]
   inspectionItems     InspectionItem[]
   documents           Document[]
   auditLogEntries     AuditLog[]
+  complianceViolations ComplianceViolation[]
   pmsListingLinks     PmsListingLink[]
   expenses            Expense[]
   inventoryAssets     InventoryAsset[]
 
   @@map("property")
+}
+
+// ---------------------------------------------------------------------------
+// Rental units (for partial_unit properties) — allows a host to list multiple
+// rooms from the same property separately (e.g., Airbnb listing per room).
+// Compliance is checked at the Property level (sum of all RentalUnit.roomsOffered).
+// ---------------------------------------------------------------------------
+
+model RentalUnit {
+  id           String   @id @default(cuid())
+  propertyId   String
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // e.g., "Master Bedroom", "Guest Suite"
+  name         String
+
+  // How many bedrooms this rental unit offers (typically 1 for a single room,
+  // but could be 2+ for a multi-room suite). Checked against partial_unit_bedroom_cap rule.
+  roomsOffered Int
+
+  calendarConnections CalendarConnection[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([propertyId])
+  @@map("rental_unit")
 }
 
 // ---------------------------------------------------------------------------
@@ -252,8 +283,15 @@ enum SyncStatus {
 
 model CalendarConnection {
   id         String           @id @default(cuid())
-  propertyId String
-  property   Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // For entire_home properties, attach directly to Property
+  propertyId String?
+  property   Property?        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  // For partial_unit properties, attach to the specific RentalUnit within the Property
+  rentalUnitId String?
+  rentalUnit   RentalUnit?     @relation(fields: [rentalUnitId], references: [id], onDelete: Cascade)
+
   platform   CalendarPlatform
 
   // Fix #5: encrypted at rest (AES-256-GCM, see src/lib/crypto.ts). Never the
@@ -273,6 +311,7 @@ model CalendarConnection {
   createdAt DateTime  @default(now())
   bookings  Booking[]
 
+  // Note: Application must enforce that one and only one of propertyId/rentalUnitId is set
   @@map("calendar_connection")
 }
 
@@ -400,9 +439,14 @@ enum DocumentType {
 
 model Document {
   id         String       @id @default(cuid())
-  propertyId String
-  property   Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// Null for host-level / general expense receipts not tied to one listing.
+  propertyId String?
+  property   Property?    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   docType    DocumentType
+  /// Host-facing title (custom "Other" name, or AI-suggested label). Falls back to type label in UI.
+  label      String?
+  /// Short AI notes (issuer, policy #, etc.) — optional, never required for compliance math.
+  aiSummary  String?
   storageKey String
   fileName   String
   mimeType   String
@@ -410,7 +454,8 @@ model Document {
   uploadedAt DateTime     @default(now())
   expiryDate DateTime?
 
-  expense Expense?
+  expense              Expense?        @relation("ExpenseReceipt")
+  inventoryPurchaseFor InventoryAsset? @relation("InventoryPurchaseReceipt")
 
   @@map("document")
 }
@@ -441,24 +486,59 @@ enum ExpenseCategory {
 }
 
 model Expense {
-  id          String          @id @default(cuid())
-  propertyId  String
-  property    Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Null = general host expense (not tied to one listing).
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
   category    ExpenseCategory
   description String
   amountCents Int
   incurredOn  DateTime
   vendorName  String?
+  notes       String?
+  /// Warranty / return-by date from the receipt when this isn't an inventory purchase.
+  warrantyExpiryDate DateTime?
 
   // Optional: the uploaded receipt, stored the same encrypted-at-rest way as
   // every other Document (spec §12) — never a second, weaker storage path.
   receiptDocumentId String?   @unique
-  receiptDocument   Document? @relation(fields: [receiptDocumentId], references: [id], onDelete: SetNull)
+  receiptDocument   Document? @relation("ExpenseReceipt", fields: [receiptDocumentId], references: [id], onDelete: SetNull)
+
+  tags            ExpenseTag[]
+  inventoryAssets InventoryAsset[] @relation("InventoryPurchaseExpense")
 
   createdAt DateTime @default(now())
 
+  @@index([userId, incurredOn])
   @@index([propertyId, incurredOn])
   @@map("expense")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  createdAt DateTime @default(now())
+
+  expenses ExpenseTag[]
+
+  @@unique([userId, name])
+  @@map("tag")
+}
+
+model ExpenseTag {
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, tagId])
+  @@map("expense_tag")
 }
 
 // ---------------------------------------------------------------------------
@@ -513,6 +593,11 @@ model InventoryAsset {
   locationInProperty String?
   notes              String?
 
+  purchaseExpenseId   String?  @unique
+  purchaseExpense     Expense? @relation("InventoryPurchaseExpense", fields: [purchaseExpenseId], references: [id], onDelete: SetNull)
+  purchaseDocumentId  String?  @unique
+  purchaseDocument    Document? @relation("InventoryPurchaseReceipt", fields: [purchaseDocumentId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -536,6 +621,44 @@ model AuditLog {
   createdAt  DateTime  @default(now())
 
   @@map("audit_log")
+}
+
+// ---------------------------------------------------------------------------
+// Compliance violations — soft enforcement audit log. When a property would
+// violate a compliance rule (e.g., offering more rooms than the bedroom cap),
+// we still allow the save but log the violation so it appears on the dashboard
+// and in reports. Append-only — never deleted.
+// ---------------------------------------------------------------------------
+
+enum ComplianceViolationType {
+  EXCEEDS_NIGHT_CAP
+  EXCEEDS_BEDROOM_CAP
+  MISSING_RENEWAL
+  OVERDUE_INSPECTION
+  EXCEEDS_OCCUPANCY_LIMIT
+}
+
+model ComplianceViolation {
+  id                String                   @id @default(cuid())
+  propertyId        String
+  property          Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  ruleType          String                   // e.g., "night_cap", "partial_unit_bedroom_cap"
+  violationType     ComplianceViolationType
+  // Actual value (e.g., nights used = 165, or rooms offered = 4)
+  value             Float?
+  // Limit/cap for comparison (e.g., night cap = 180, or bedroom cap = 2)
+  limit             Float?
+
+  // When the host saw and acknowledged the warning
+  acknowledgedAt    DateTime?
+  acknowledgedBy    String?
+
+  createdAt         DateTime                 @default(now())
+
+  @@index([propertyId])
+  @@index([createdAt])
+  @@map("compliance_violation")
 }
 
 // ---------------------------------------------------------------------------
@@ -653,4 +776,23 @@ model Subscription {
 
   @@index([tierId])
   @@map("subscription")
+}
+
+// ---------------------------------------------------------------------------
+// Platform secrets (admin Keys & APIs) — AES-256-GCM at rest, same helpers as
+// CalendarConnection / PmsConnection. Never store plaintext API keys here.
+// ---------------------------------------------------------------------------
+
+model PlatformApiKey {
+  id         String   @id @default(cuid())
+  /// Stable machine name, e.g. "google_maps"
+  keyName    String   @unique
+  label      String
+  ciphertext String
+  iv         String
+  lastFour   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("platform_api_key")
 }
