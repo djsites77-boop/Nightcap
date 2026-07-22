@@ -19,26 +19,26 @@ export async function PropertyMapEmbed({
 }) {
   const key = await getPlatformApiKeyPlaintext("google_maps");
 
-  if (key) {
-    const params = new URLSearchParams({
-      key,
-      q: `${latitude},${longitude}`,
-      zoom: "15",
-    });
-
-    return (
-      <iframe
-        title={`Map of ${label}`}
-        src={`https://www.google.com/maps/embed/v1/place?${params.toString()}`}
-        className={`h-full w-full border-0 ${className ?? ""}`}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        allowFullScreen
-      />
-    );
+  if (!key) {
+    return <PropertyMapPlaceholder className={className} />;
   }
 
-  return <PropertyMapPlaceholder className={className} />;
+  const params = new URLSearchParams({
+    key,
+    q: `${latitude},${longitude}`,
+    zoom: "15",
+  });
+
+  return (
+    <iframe
+      title={`Map of ${label}`}
+      src={`https://www.google.com/maps/embed/v1/place?${params.toString()}`}
+      className={`h-full w-full border-0 ${className ?? ""}`}
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+      allowFullScreen
+    />
+  );
 }
 
 export function PropertyMapPlaceholder({ className }: { className?: string }) {
