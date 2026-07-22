@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { LogoMark, Wordmark } from "@/components/shells/logo-mark";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +10,7 @@ const TIERS = [
     price: "$0",
     unit: "/mo",
     blurb: "One property, full compliance tracking. No card required.",
-    features: ["1 property", "Night-count & tax tracking", "Inspection checklist", "Manual booking entry"],
+    features: ["1 property", "Night cap tracking", "Inspection checklist", "Manual booking entry"],
     cta: "Start free",
     featured: false,
   },
@@ -18,7 +19,7 @@ const TIERS = [
     price: "$19",
     unit: "/mo",
     blurb: "Predictable flat rate for hosts with a handful of listings.",
-    features: ["Up to 5 properties", "Automatic iCal sync", "Tax remittance reminders", "Document vault"],
+    features: ["Up to 5 properties", "Multi-platform iCal sync", "Compliance alerts", "Document vault"],
     cta: "Start free trial",
     featured: false,
   },
@@ -44,24 +45,26 @@ const TIERS = [
 
 const FEATURES = [
   {
-    title: "Never miss a night-count deadline",
-    body: "Nitecap tallies every booking against your municipality's short-term-rental night caps automatically, so you know exactly where you stand before the city does.",
+    title: "Track nights across all your platforms",
+    body: "Listed on Airbnb, VRBO, and Booking.com at once? Nightcap syncs all calendars into one place and tallies nights toward your 180-night cap across every platform — the only compliance figure that matters.",
   },
   {
-    title: "Accommodation tax, handled",
-    body: "Municipal lodging tax owed, collected, and remitted — tracked per booking, per period, with the paperwork ready when it's due.",
+    title: "Know your compliance status in real time",
+    body: "Dashboard shows where you stand on every rule: nights used, registration renewal countdown, partial-unit bedroom caps, and required inspections. Early alerts at 85% so you're never caught off guard.",
   },
   {
-    title: "Calendars that sync themselves",
-    body: "Connect Airbnb, VRBO, or your PMS once. Nitecap keeps bookings current with a debounced iCal sync built to survive flaky feeds.",
+    title: "Multi-platform iCal sync that doesn't break",
+    body: "Connect Airbnb, VRBO, or your PMS once. Nightcap keeps bookings current with a debounced sync that survives flaky feeds and handles multi-platform double-bookings.",
   },
   {
-    title: "Inspection & document vault",
-    body: "Fire safety, business licence, insurance — upload once, get reminded before anything expires, and hand auditors a clean paper trail.",
+    title: "3-year audit trail & compliance records",
+    body: "Fire safety, business licence, insurance, booking logs — upload once, get reminded before anything expires, and hand auditors a complete, organized compliance file whenever required.",
   },
 ];
 
 export function LandingPage() {
+  const [address, setAddress] = require("react").useState("");
+
   return (
     <div className="min-h-dvh bg-app-sky">
       <header className="safe-top sticky top-0 z-40 border-b border-border/70 bg-surface-glass backdrop-blur-xl">
@@ -89,18 +92,33 @@ export function LandingPage() {
           For Canadian short-term rental hosts
         </p>
         <h1 className="mx-auto mt-3 max-w-3xl text-balance font-display text-[1.85rem] font-extrabold leading-[1.15] tracking-tight text-foreground sm:mt-4 sm:text-5xl md:text-[3.25rem]">
-          Stay compliant without losing a weekend to spreadsheets.
+          Keep your STR listing compliant — across every platform.
         </h1>
         <p className="mx-auto mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:mt-5 sm:text-lg">
-          Nitecap tracks night caps, accommodation tax, licences, and inspections — so you know where you stand
-          before the city does.
+          Toronto's 180-night cap applies to every booking you take — Airbnb, VRBO, all of them combined. Nightcap makes sure you never exceed it, and stays on top of every other compliance rule that matters.
         </p>
-        <div className="mt-8 flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <Button asChild size="lg" className="w-full sm:w-auto">
-            <Link href="/sign-up">Start free — no card needed</Link>
-          </Button>
-          <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
-            <Link href="#pricing">See pricing</Link>
+        <div className="mt-8 mx-auto max-w-md">
+          <div className="flex flex-col gap-2">
+            <Input
+              type="text"
+              placeholder="Start today. Enter your address."
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="h-11 text-base"
+            />
+            <Button asChild size="lg" className="w-full">
+              <Link href={address ? `/sign-up?address=${encodeURIComponent(address)}` : "/sign-up"}>
+                See your property on the map
+              </Link>
+            </Button>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Then set up compliance tracking for free. No card required.
+          </p>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="#pricing">View pricing →</Link>
           </Button>
         </div>
 
@@ -113,9 +131,9 @@ export function LandingPage() {
           </div>
           <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-3">
             {[
-              { label: "Nights used this year", value: "142 / 180", tone: "ok" },
-              { label: "Tax owed this period", value: "$1,284.60", tone: "warning" },
-              { label: "Licence renewal", value: "Due in 11 days", tone: "risk" },
+              { label: "Nights used across all platforms", value: "142 / 180", tone: "ok" },
+              { label: "Compliance status", value: "On track", tone: "ok" },
+              { label: "License renewal", value: "Due in 11 days", tone: "risk" },
             ].map((kpi, i) => (
               <div
                 key={kpi.label}
@@ -198,9 +216,9 @@ export function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-3xl px-4 py-12 text-center sm:px-6 sm:py-16">
-        <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Ready to stop guessing?</h2>
+        <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Stop guessing if you're compliant.</h2>
         <p className="mt-3 text-muted-foreground">
-          Set up your first property in minutes. No credit card required for the free tier.
+          Set up your first property in minutes. See your night-count status, registration renewal countdown, and every compliance rule that matters — all in one place. No credit card required.
         </p>
         <Button asChild size="lg" className="mt-6 w-full sm:w-auto">
           <Link href="/sign-up">Start free</Link>

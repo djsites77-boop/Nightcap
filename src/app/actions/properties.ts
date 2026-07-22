@@ -131,6 +131,18 @@ export async function createProperty(formData: FormData) {
   // For now, store the roomsOffered on the property and create a single RentalUnit
   // (Future: UI will support multiple RentalUnits per partial-unit property)
   if (data.unitType === "partial_unit" && roomsOffered) {
+    // Free tier can only have 1 RentalUnit total
+    if (subscription.tier.code === "free") {
+      const existingRentalUnits = await prisma.rentalUnit.count({
+        where: { property: { userId: session.user.id } },
+      });
+      if (existingRentalUnits > 0) {
+        throw new Error(
+          "Free tier is limited to 1 room per property. Upgrade to a paid tier to add more."
+        );
+      }
+    }
+
     const rentalUnit = await prisma.rentalUnit.create({
       data: {
         propertyId: property.id,
