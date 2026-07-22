@@ -32,6 +32,7 @@ export function PropertyCard({
   view,
   thumbSrc,
   thumbKind,
+  violationCount = 0,
   taxDueLabel = "Tax due",
 }: {
   id: string;
@@ -40,6 +41,8 @@ export function PropertyCard({
   view: PropertyStatusView;
   thumbSrc: string | null;
   thumbKind: "photo" | "map" | null;
+  /** Number of unacknowledged compliance violations */
+  violationCount?: number;
   /** Host-facing tax label from the property's province (e.g. "MAT due"). */
   taxDueLabel?: string;
 }) {
@@ -71,10 +74,17 @@ export function PropertyCard({
             </h3>
             <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">{address}</p>
           </div>
-          <Badge variant={view.status} className="w-fit shrink-0">
-            <span className="sm:hidden">{STATUS_SHORT[view.status]}</span>
-            <span className="hidden sm:inline">{STATUS_COPY[view.status]}</span>
-          </Badge>
+          <div className="flex flex-col gap-1.5 w-fit shrink-0">
+            {violationCount > 0 && (
+              <Badge variant="risk">
+                {violationCount} violation{violationCount !== 1 ? "s" : ""}
+              </Badge>
+            )}
+            <Badge variant={view.status}>
+              <span className="sm:hidden">{STATUS_SHORT[view.status]}</span>
+              <span className="hidden sm:inline">{STATUS_COPY[view.status]}</span>
+            </Badge>
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-1.5 border-t border-border pt-3 sm:gap-2">

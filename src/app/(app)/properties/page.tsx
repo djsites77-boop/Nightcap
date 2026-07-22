@@ -29,7 +29,10 @@ export default async function PropertiesPage() {
   const located = await prisma.property.findMany({
     where: { id: { in: properties.map((p) => p.id) } },
     orderBy: { createdAt: "asc" },
-    include: { municipality: true },
+    include: {
+      municipality: true,
+      _count: { select: { complianceViolations: { where: { acknowledgedAt: null } } } },
+    },
   });
 
   const views = await Promise.all(located.map((p) => getPropertyStatusView(p.id)));
@@ -38,6 +41,7 @@ export default async function PropertiesPage() {
     property: p,
     view: views[i],
     thumb: thumbs[i],
+    violationCount: p._count.complianceViolations,
   }));
 
   return (
@@ -80,7 +84,7 @@ export default async function PropertiesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {rows.map(({ property, view, thumb }) => (
+          {rows.map(({ property, view, thumb, violationCount }) => (
             <PropertyCard
               key={property.id}
               id={property.id}
@@ -89,6 +93,7 @@ export default async function PropertiesPage() {
               view={view}
               thumbSrc={thumb?.src ?? null}
               thumbKind={thumb?.kind ?? null}
+              violationCount={violationCount}
               taxDueLabel={`${accommodationTaxShortLabel(property.municipality.province)} due`}
             />
           ))}
