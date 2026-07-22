@@ -550,12 +550,36 @@ async function main() {
       registrationStatus: "active",
     },
   });
-  const leslievilleConn = await encryptedConnection(leslieville.id, "airbnb", "https://www.airbnb.ca/calendar/ical/55219900.ics?s=ff00ee11dd22");
+  const leslieRoom1 = await prisma.rentalUnit.create({
+    data: { propertyId: leslieville.id, name: "Room 1", roomsOffered: 1 },
+  });
+  const leslieRoom2 = await prisma.rentalUnit.create({
+    data: { propertyId: leslieville.id, name: "Room 2", roomsOffered: 1 },
+  });
+  const leslievilleConn1 = await encryptedUnitConnection(
+    leslieRoom1.id,
+    "airbnb",
+    "https://www.airbnb.ca/calendar/ical/55219900.ics?s=ff00ee11dd22"
+  );
+  const leslievilleConn2 = await encryptedUnitConnection(
+    leslieRoom2.id,
+    "airbnb",
+    "https://www.airbnb.ca/calendar/ical/55219901.ics?s=aabbccddeeff"
+  );
   await prisma.calendarConnection.update({
-    where: { id: leslievilleConn.id },
+    where: { id: leslievilleConn1.id },
     data: { lastSyncedAt: daysAgo(1), syncStatus: "connected" },
   });
-  await seedBookings(leslieville.id, leslievilleConn.id, [{ checkIn: daysFromNow(2), checkOut: daysFromNow(5), platform: "airbnb" }]);
+  await prisma.calendarConnection.update({
+    where: { id: leslievilleConn2.id },
+    data: { lastSyncedAt: daysAgo(1), syncStatus: "connected" },
+  });
+  await seedBookings(leslieville.id, leslievilleConn1.id, [
+    { checkIn: daysFromNow(2), checkOut: daysFromNow(5), platform: "airbnb" },
+  ]);
+  await seedBookings(leslieville.id, leslievilleConn2.id, [
+    { checkIn: daysFromNow(8), checkOut: daysFromNow(11), platform: "airbnb" },
+  ]);
   await seedMatLedger(leslieville.id, [{ start: "2026-04-01", end: "2026-06-30", revenue: 4100, status: "due" }]);
   await seedChecklist(leslieville.id, {});
   await seedDocuments(storage, leslieville.id, [{ docType: "fire_safety_cert", fileName: "fire-safety-certificate.pdf", expiryDays: 199 }]);
@@ -569,6 +593,23 @@ async function main() {
     return prisma.calendarConnection.create({
       data: {
         propertyId,
+        platform,
+        icalUrlCiphertext: encrypted.ciphertext,
+        icalUrlIv: encrypted.iv,
+        icalUrlLastFour: lastFour(url),
+      },
+    });
+  }
+
+  async function encryptedUnitConnection(
+    rentalUnitId: string,
+    platform: "airbnb" | "vrbo" | "direct",
+    url: string
+  ) {
+    const encrypted = encryptSecret(url);
+    return prisma.calendarConnection.create({
+      data: {
+        rentalUnitId,
         platform,
         icalUrlCiphertext: encrypted.ciphertext,
         icalUrlIv: encrypted.iv,

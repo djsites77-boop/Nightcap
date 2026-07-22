@@ -15,6 +15,7 @@ import {
 } from "@/app/actions/expenses";
 import type { ReceiptSuggestion } from "@/lib/receipt-parsing";
 import { ViewDocumentButton } from "@/components/property-detail/view-document-button";
+import { RECEIPT_ACCEPT } from "@/lib/upload-accept";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_OPTIONS = [
@@ -209,9 +210,9 @@ export function ExpenseForm({
       <div className="flex flex-col gap-1.5">
         <Label>Receipt</Label>
         <FilePickField
-          accept="image/jpeg,image/png,image/webp,application/pdf"
+          accept={RECEIPT_ACCEPT}
           label="Drop receipt or browse"
-          hint="AI reads vendor, amount, tags, warranty"
+          hint="PDF or photo · max 8MB · AI fills vendor, amount, tags"
           onFileChange={(f) => {
             setFile(f);
             if (f) void handleScan(f);

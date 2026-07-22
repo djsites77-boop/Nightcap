@@ -109,7 +109,8 @@ export async function createExpense(formData: FormData) {
     : null;
 
   if (file instanceof File && file.size > 0) {
-    if (file.size > 8 * 1024 * 1024) throw new Error("Receipt file must be under 8MB.");
+    const { assertSafeUpload } = await import("@/lib/safe-upload");
+    const safe = await assertSafeUpload(file);
     const doc = await prisma.document.create({
       data: {
         propertyId: parsed.data.propertyId ?? null,
@@ -118,10 +119,10 @@ export async function createExpense(formData: FormData) {
           ? `Receipt — ${parsed.data.vendorName}`
           : "Receipt",
         aiSummary: parsed.data.notes || null,
-        fileName: file.name.slice(0, 180),
+        fileName: safe.fileName,
         storageKey: "",
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
+        mimeType: safe.mimeType,
+        sizeBytes: safe.sizeBytes,
         expiryDate: warrantyDate,
       },
     });
@@ -130,8 +131,7 @@ export async function createExpense(formData: FormData) {
       doc.id,
       doc.fileName
     );
-    const buf = Buffer.from(await file.arrayBuffer());
-    await getDocumentStorage().put(key, buf, doc.mimeType);
+    await getDocumentStorage().put(key, safe.buffer, safe.mimeType);
     await prisma.document.update({ where: { id: doc.id }, data: { storageKey: key } });
     receiptDocumentId = doc.id;
   }
@@ -207,12 +207,11 @@ export async function suggestExpenseFromReceipt(formData: FormData): Promise<Rec
   const file = formData.get("receipt");
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a receipt first.");
 
-  const mimeType = file.type || "application/octet-stream";
-  const supported = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
-  const ok =
-    supported.includes(mimeType as (typeof supported)[number]) ||
-    file.name.toLowerCase().endsWith(".pdf");
-  if (!ok) throw new Error("Use a JPEG, PNG, WebP, or PDF receipt.");
+  const { assertSafeUpload } = await import("@/lib/safe-upload");
+  const safe = await assertSafeUpload(file);
+  if (!["pdf", "png", "jpeg", "webp"].includes(safe.kind)) {
+    throw new Error("Use a JPEG, PNG, WebP, or PDF receipt for AI scan.");
+  }
 
   const propertyId = String(formData.get("propertyId") ?? "").trim();
   let context: { propertyNickname?: string; address?: string } | undefined;
@@ -221,14 +220,13 @@ export async function suggestExpenseFromReceipt(formData: FormData): Promise<Rec
     context = { propertyNickname: property.nickname, address: property.address };
   }
 
-  const buf = Buffer.from(await file.arrayBuffer());
   const mediaType = (
-    mimeType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+    safe.kind === "pdf"
       ? "application/pdf"
-      : mimeType
+      : safe.mimeType
   ) as "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
 
-  return suggestReceiptFields(buf.toString("base64"), mediaType, context);
+  return suggestReceiptFields(safe.buffer.toString("base64"), mediaType, context);
 }
 
 /** CSV export of a property's expenses for handing to an accountant. */

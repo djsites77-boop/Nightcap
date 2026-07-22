@@ -9,6 +9,8 @@ export interface PropertyStatusView {
   cap: number | null;
   daysToRenewal: number | null;
   bedroomCap: number | null;
+  /** Sum of RentalUnit.roomsOffered (partial), else null. */
+  roomsOfferedTotal: number | null;
   matDueCents: number;
 }
 
@@ -35,7 +37,12 @@ export async function getPropertyStatusView(propertyId: string): Promise<Propert
   );
 
   let bedroomCap: number | null = null;
+  let roomsOfferedTotal: number | null = null;
   if (property.unitType === "partial_unit") {
+    roomsOfferedTotal = property.rentalUnits.reduce((sum, u) => sum + u.roomsOffered, 0);
+    if (roomsOfferedTotal === 0 && property.roomsOffered != null) {
+      roomsOfferedTotal = property.roomsOffered;
+    }
     const rules = await prisma.complianceRule.findMany({
       where: { municipalityId: property.municipalityId, ruleType: "partial_unit_bedroom_cap" },
       select: { ruleType: true, unitType: true, value: true, effectiveDate: true },
@@ -67,6 +74,7 @@ export async function getPropertyStatusView(propertyId: string): Promise<Propert
     cap: tally?.cap ?? null,
     daysToRenewal,
     bedroomCap,
+    roomsOfferedTotal,
     matDueCents,
   };
 }

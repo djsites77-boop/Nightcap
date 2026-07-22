@@ -22,21 +22,21 @@ interface Municipality {
 
 function roomsOfferedHelp(muni: Municipality | null, bedroomCount: number): string {
   if (!muni) {
-    return "Rooms offered only applies to partial-unit listings. Pick a municipality to see its local cap.";
+    return "Number of separate room listings (each gets its own Airbnb calendar). Pick a municipality to see its local bedroom cap.";
   }
 
   const cap = muni.partialUnitCap;
   if (!cap || cap.maxBedroomsSimultaneous == null) {
-    return `Rooms offered only applies to partial-unit listings. ${muni.name} has no partial-unit bedroom cap configured yet.`;
+    return `Number of separate room listings under this home. ${muni.name} has no partial-unit bedroom cap configured yet.`;
   }
 
   const max = cap.maxBedroomsSimultaneous;
   if (cap.oneFewerThanTotal) {
     const computed = Math.max(0, Math.min(max, bedroomCount - 1));
-    return `Rooms offered only applies to partial-unit listings. ${muni.name} caps this at whichever is lower: ${max}, or one fewer than total bedrooms (currently ${computed} for ${bedroomCount} bedroom${bedroomCount === 1 ? "" : "s"}).`;
+    return `How many separate STR room listings you’re creating (Room 1, Room 2, …). ${muni.name} caps total bedrooms offered at whichever is lower: ${max}, or one fewer than total bedrooms (currently ${computed} for ${bedroomCount} bedroom${bedroomCount === 1 ? "" : "s"}).`;
   }
 
-  return `Rooms offered only applies to partial-unit listings. ${muni.name} caps simultaneous STR rooms at ${max}.`;
+  return `How many separate STR room listings you’re creating. ${muni.name} caps simultaneous STR bedrooms at ${max}.`;
 }
 
 export function NewPropertyForm({
@@ -133,7 +133,7 @@ export function NewPropertyForm({
               {
                 value: "partial_unit" as const,
                 title: "Partial unit",
-                sub: "Room rental, no annual night cap",
+                sub: "Rent rooms separately — one calendar each",
               },
             ]
           ).map((tile) => (
@@ -173,7 +173,7 @@ export function NewPropertyForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="roomsOffered">Rooms offered for STR</Label>
+          <Label htmlFor="roomsOffered">Separate room listings</Label>
           <Input
             id="roomsOffered"
             name="roomsOffered"
@@ -185,7 +185,9 @@ export function NewPropertyForm({
         </div>
       </div>
       <p className="mb-5 text-xs leading-relaxed text-subtle-foreground">
-        {roomsOfferedHelp(selected, bedroomCount)}
+        {unitType === "partial_unit"
+          ? roomsOfferedHelp(selected, bedroomCount)
+          : "Entire home uses one calendar for the whole place. Partial unit creates Room 1, Room 2, … under this address."}
       </p>
 
       {error && <p className="mb-3 text-sm text-status-risk">{error}</p>}

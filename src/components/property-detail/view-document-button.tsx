@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDocumentViewUrl } from "@/app/actions/property-detail";
 
@@ -9,7 +10,7 @@ export function ViewDocumentButton({ documentId }: { documentId: string }) {
   return (
     <Button
       size="sm"
-      variant="ghost"
+      variant="subtle"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
@@ -18,7 +19,8 @@ export function ViewDocumentButton({ documentId }: { documentId: string }) {
         })
       }
     >
-      {pending ? "Preparing…" : "View"}
+      {pending ? "Opening…" : "Open"}
+      {!pending ? <ExternalLink className="size-3.5" strokeWidth={2} /> : null}
     </Button>
   );
 }

@@ -2,6 +2,7 @@ import type * as IcalModule from "node-ical";
 import { prisma } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto";
 import { recomputeNightTally } from "@/lib/night-tally";
+import { resolveCalendarConnectionOwner } from "@/lib/rental-units";
 
 export interface SyncResult {
   connectionId: string;
@@ -21,12 +22,12 @@ export interface SyncResult {
  * bookings — must never be read as "every booking was cancelled." Absence is
  * only trusted as a real cancellation after it holds across two consecutive
  * *successful* syncs (Booking.pendingCancellationSince).
+ *
+ * Connections may hang off the Property (entire home) or a RentalUnit (room
+ * listing). Bookings always land on the parent Property.
  */
 export async function syncCalendarConnection(connectionId: string): Promise<SyncResult> {
-  const connection = await prisma.calendarConnection.findUniqueOrThrow({
-    where: { id: connectionId },
-    include: { property: { select: { id: true, userId: true } } },
-  });
+  const { connection, property } = await resolveCalendarConnectionOwner(connectionId);
 
   const activeBookings = await prisma.booking.findMany({
     where: { calendarConnectionId: connectionId, cancelledAt: null },
@@ -35,10 +36,6 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
 
   let events: IcalModule.VEvent[];
   try {
-    // Dynamically imported so its heavyweight Temporal-polyfill dependency is
-    // never evaluated during Next.js's build-time page-data collection (which
-    // runs route modules in a constrained trace VM that doesn't fully support
-    // it) — only at actual request time, in the real Node.js runtime.
     const ical: typeof IcalModule = await import("node-ical");
     const icalUrl = decryptSecret({
       ciphertext: connection.icalUrlCiphertext,
@@ -55,9 +52,6 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
   }
 
   if (events.length === 0) {
-    // A truncated/failed fetch and a legitimately empty new calendar look
-    // identical at this layer, so treat both the same way: never process
-    // removals. Only report it as an error if we had bookings to lose.
     const message =
       activeBookings.length > 0
         ? "Feed returned zero events while bookings exist — treated as a sync failure, not a mass cancellation."
@@ -78,13 +72,18 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
     if (nights <= 0) continue;
 
     const existing = await prisma.booking.findUnique({
-      where: { calendarConnectionId_externalUid: { calendarConnectionId: connection.id, externalUid: event.uid } },
+      where: {
+        calendarConnectionId_externalUid: {
+          calendarConnectionId: connection.id,
+          externalUid: event.uid,
+        },
+      },
     });
 
     if (!existing) {
       await prisma.booking.create({
         data: {
-          propertyId: connection.property.id,
+          propertyId: property.id,
           calendarConnectionId: connection.id,
           checkIn: event.start,
           checkOut: event.end,
@@ -109,7 +108,7 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
             checkOut: event.end,
             nights,
             cancelledAt: null,
-            pendingCancellationSince: null, // reappeared — clear any pending-removal flag
+            pendingCancellationSince: null,
           },
         });
         bookingsUpdated++;
@@ -124,14 +123,12 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
     if (!booking.externalUid || feedUids.has(booking.externalUid)) continue;
 
     if (booking.pendingCancellationSince === null) {
-      // First time it's been seen missing — flag it, don't cancel yet.
       await prisma.booking.update({
         where: { id: booking.id },
         data: { pendingCancellationSince: new Date() },
       });
       bookingsFlaggedMissing++;
     } else {
-      // Missing on a second consecutive successful sync — now trust it.
       await prisma.$transaction([
         prisma.booking.update({
           where: { id: booking.id },
@@ -139,8 +136,8 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
         }),
         prisma.auditLog.create({
           data: {
-            userId: connection.property.userId,
-            propertyId: connection.property.id,
+            userId: property.userId,
+            propertyId: property.id,
             action: "booking_cancelled_via_sync",
             payload: { bookingId: booking.id, calendarConnectionId: connection.id },
           },
@@ -160,7 +157,7 @@ export async function syncCalendarConnection(connectionId: string): Promise<Sync
     },
   });
 
-  await recomputeNightTally(connection.property.id);
+  await recomputeNightTally(property.id);
 
   return {
     connectionId: connection.id,

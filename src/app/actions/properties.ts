@@ -16,6 +16,8 @@ import { ensureInspectionChecklist } from "@/lib/inspection";
 import { ensureMatPeriods } from "@/lib/mat-ledger";
 import { geocodeAddress } from "@/lib/geo";
 import { validatePartialUnitCompliance } from "@/lib/compliance-validator";
+import { refreshPropertyRoomsOffered } from "@/lib/rental-units";
+import { revalidatePath } from "next/cache";
 
 const createPropertySchema = z
   .object({
@@ -128,42 +130,27 @@ export async function createProperty(formData: FormData) {
 
   await recomputeNightTally(property.id);
 
-  // For now, store the roomsOffered on the property and create a single RentalUnit
-  // (Future: UI will support multiple RentalUnits per partial-unit property)
+  // Partial homes: one RentalUnit per separate STR listing (Room 1, Room 2, …).
+  // Each unit gets its own Airbnb/VRBO calendar during connect.
   if (data.unitType === "partial_unit" && roomsOffered) {
-    // Free tier can only have 1 RentalUnit total
-    if (subscription.tier.code === "free") {
-      const existingRentalUnits = await prisma.rentalUnit.count({
-        where: { property: { userId: session.user.id } },
+    for (let i = 1; i <= roomsOffered; i++) {
+      await prisma.rentalUnit.create({
+        data: {
+          propertyId: property.id,
+          name: roomsOffered === 1 ? "Room 1" : `Room ${i}`,
+          roomsOffered: 1,
+        },
       });
-      if (existingRentalUnits > 0) {
-        throw new Error(
-          "Free tier is limited to 1 room per property. Upgrade to a paid tier to add more."
-        );
-      }
     }
 
-    const rentalUnit = await prisma.rentalUnit.create({
-      data: {
-        propertyId: property.id,
-        name: `${property.nickname} - Room 1`,
-        roomsOffered,
-      },
-    });
-
-    // Validate and log any compliance violations
     const validation = await validatePartialUnitCompliance(property.id);
     if (!validation.isCompliant) {
-      // Log but don't block — host still proceeds to onboarding
       await prisma.auditLog.create({
         data: {
           userId: session.user.id,
           propertyId: property.id,
           action: "compliance_violation_detected",
-          payload: {
-            violations: validation.violations,
-            rentalUnitId: rentalUnit.id,
-          },
+          payload: { violations: validation.violations },
         },
       });
     }
@@ -175,25 +162,48 @@ export async function createProperty(formData: FormData) {
 const connectCalendarSchema = z.object({
   platform: z.enum(["airbnb", "vrbo", "direct"]),
   icalUrl: z.string().trim().url("Enter a valid iCal URL"),
+  rentalUnitId: z.string().optional(),
 });
 
 export async function connectCalendar(propertyId: string, formData: FormData) {
   const session = await requireSession();
-  const property = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
+  const property = await prisma.property.findUniqueOrThrow({
+    where: { id: propertyId },
+    include: { rentalUnits: { select: { id: true } } },
+  });
   if (property.userId !== session.user.id) throw new Error("Not authorized");
 
   const parsed = connectCalendarSchema.safeParse({
     platform: formData.get("platform"),
     icalUrl: formData.get("icalUrl"),
+    rentalUnitId: formData.get("rentalUnitId") || undefined,
   });
   if (!parsed.success) {
     throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
   }
 
+  let rentalUnitId: string | null = null;
+  let connectionPropertyId: string | null = propertyId;
+
+  if (property.unitType === "partial_unit") {
+    const unitId = parsed.data.rentalUnitId;
+    if (!unitId) {
+      throw new Error("Pick which room listing this calendar belongs to.");
+    }
+    if (!property.rentalUnits.some((u) => u.id === unitId)) {
+      throw new Error("That room isn’t part of this property.");
+    }
+    rentalUnitId = unitId;
+    connectionPropertyId = null; // XOR: unit-scoped connection
+  } else if (parsed.data.rentalUnitId) {
+    throw new Error("Entire-home listings attach the calendar to the property, not a room.");
+  }
+
   const encrypted = encryptSecret(parsed.data.icalUrl);
   const connection = await prisma.calendarConnection.create({
     data: {
-      propertyId,
+      propertyId: connectionPropertyId,
+      rentalUnitId,
       platform: parsed.data.platform,
       icalUrlCiphertext: encrypted.ciphertext,
       icalUrlIv: encrypted.iv,
@@ -201,9 +211,6 @@ export async function connectCalendar(propertyId: string, formData: FormData) {
     },
   });
 
-  // Best-effort initial sync so the host sees real data immediately; failures
-  // here just leave the connection in an error state, which the property
-  // detail screen surfaces — they don't block onboarding.
   await syncCalendarConnection(connection.id).catch(() => undefined);
 
   await prisma.auditLog.create({
@@ -211,11 +218,115 @@ export async function connectCalendar(propertyId: string, formData: FormData) {
       userId: session.user.id,
       propertyId,
       action: "calendar_connected",
-      payload: { connectionId: connection.id, platform: parsed.data.platform },
+      payload: {
+        connectionId: connection.id,
+        platform: parsed.data.platform,
+        rentalUnitId,
+      },
     },
   });
 
+  const stayOnPage = formData.get("stayOnPage") === "true";
+  if (stayOnPage) {
+    revalidatePath(`/properties/${propertyId}`);
+    return;
+  }
+
+  // Stay on connect page for partial units until every room has a calendar (or host skips).
+  if (property.unitType === "partial_unit") {
+    const units = await prisma.rentalUnit.findMany({
+      where: { propertyId },
+      include: { calendarConnections: { select: { id: true } } },
+    });
+    const allLinked = units.every((u) => u.calendarConnections.length > 0);
+    if (!allLinked) {
+      redirect(`/properties/${propertyId}/connect-calendar`);
+    }
+  }
+
   redirect(`/properties/${propertyId}/registration`);
+}
+
+const rentalUnitSchema = z.object({
+  name: z.string().trim().min(1, "Room name is required").max(80),
+  roomsOffered: z.coerce.number().int().min(1, "At least 1 bedroom").max(20),
+});
+
+export async function addRentalUnit(propertyId: string, formData: FormData) {
+  const session = await requireSession();
+  const property = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
+  if (property.userId !== session.user.id) throw new Error("Not authorized");
+  if (property.unitType !== "partial_unit") {
+    throw new Error("Only partial-unit homes can add room listings.");
+  }
+
+  const parsed = rentalUnitSchema.safeParse({
+    name: formData.get("name"),
+    roomsOffered: formData.get("roomsOffered") || 1,
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+  }
+
+  await prisma.rentalUnit.create({
+    data: {
+      propertyId,
+      name: parsed.data.name,
+      roomsOffered: parsed.data.roomsOffered,
+    },
+  });
+  await refreshPropertyRoomsOffered(propertyId);
+  await validatePartialUnitCompliance(propertyId);
+
+  revalidatePath(`/properties/${propertyId}`);
+}
+
+export async function updateRentalUnit(unitId: string, formData: FormData) {
+  const session = await requireSession();
+  const unit = await prisma.rentalUnit.findUniqueOrThrow({
+    where: { id: unitId },
+    include: { property: { select: { id: true, userId: true, unitType: true } } },
+  });
+  if (unit.property.userId !== session.user.id) throw new Error("Not authorized");
+
+  const parsed = rentalUnitSchema.safeParse({
+    name: formData.get("name"),
+    roomsOffered: formData.get("roomsOffered") || unit.roomsOffered,
+  });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
+  }
+
+  await prisma.rentalUnit.update({
+    where: { id: unitId },
+    data: { name: parsed.data.name, roomsOffered: parsed.data.roomsOffered },
+  });
+  await refreshPropertyRoomsOffered(unit.property.id);
+  await validatePartialUnitCompliance(unit.property.id);
+
+  revalidatePath(`/properties/${unit.property.id}`);
+}
+
+export async function deleteRentalUnit(unitId: string) {
+  const session = await requireSession();
+  const unit = await prisma.rentalUnit.findUniqueOrThrow({
+    where: { id: unitId },
+    include: {
+      property: { select: { id: true, userId: true } },
+    },
+  });
+  if (unit.property.userId !== session.user.id) throw new Error("Not authorized");
+
+  const remaining = await prisma.rentalUnit.count({ where: { propertyId: unit.property.id } });
+  if (remaining <= 1) {
+    throw new Error("Keep at least one room listing on a partial-unit property.");
+  }
+
+  await prisma.rentalUnit.delete({ where: { id: unitId } });
+  await refreshPropertyRoomsOffered(unit.property.id);
+  await validatePartialUnitCompliance(unit.property.id);
+
+  revalidatePath(`/properties/${unit.property.id}`);
 }
 
 const registrationSchema = z.object({

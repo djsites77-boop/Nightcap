@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 import { MapPin, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Crisp vector Google map (Maps Embed — free). Dark mode uses a careful
- * invert filter so we don't stretch a low-res Static bitmap across the hero.
+ * Crisp vector Google map (Maps Embed — free/unlimited).
+ * Always light: Embed has no real dark colorScheme; filter hacks look muddy.
  */
 export function PropertyMapFrame({
   embedSrc,
@@ -20,11 +18,6 @@ export function PropertyMapFrame({
   className?: string;
   mapsHref: string;
 }) {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const dark = mounted && resolvedTheme === "dark";
-
   if (!embedSrc) {
     return <PropertyMapPlaceholder className={className} />;
   }
@@ -34,10 +27,7 @@ export function PropertyMapFrame({
       <iframe
         title={`Map of ${label}`}
         src={embedSrc}
-        className={cn(
-          "absolute inset-0 h-full w-full border-0",
-          dark && "map-embed-dark"
-        )}
+        className="absolute inset-0 h-full w-full border-0"
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
         allowFullScreen

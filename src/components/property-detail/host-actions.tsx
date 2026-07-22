@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { FilePickField } from "@/components/ui/file-pick-field";
+import { DOCUMENT_ACCEPT } from "@/lib/upload-accept";
 import {
   addManualBooking,
   syncAllHostCalendars,
@@ -165,9 +167,11 @@ export function RegistrationProofForm({ propertyId }: { propertyId: string }) {
 export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
   const [pending, start] = useTransition();
   const [error, setError] = React.useState<string | null>(null);
+  const [formKey, setFormKey] = React.useState(0);
 
   return (
     <form
+      key={formKey}
       className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -176,7 +180,7 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
         start(async () => {
           try {
             await uploadDocument(fd);
-            e.currentTarget.reset();
+            setFormKey((k) => k + 1);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Upload failed");
           }
@@ -184,9 +188,10 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
       }}
     >
       <input type="hidden" name="propertyId" value={propertyId} />
+      <p className="text-sm font-extrabold text-foreground">Upload a document</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="docType">Type</Label>
+          <Label htmlFor="docType">What is this?</Label>
           <NativeSelect id="docType" name="docType" defaultValue="insurance">
             <option value="registration">Registration / licence</option>
             <option value="fire_safety_cert">Fire safety certificate</option>
@@ -201,10 +206,13 @@ export function DocumentUploadForm({ propertyId }: { propertyId: string }) {
           <Input id="expiryDate" name="expiryDate" type="date" />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="file">File</Label>
-        <Input id="file" name="file" type="file" required />
-      </div>
+      <FilePickField
+        name="file"
+        required
+        accept={DOCUMENT_ACCEPT}
+        label="Choose file"
+        hint="PDF, PNG, JPG, WEBP, CSV, Word, or Excel · max 8MB · no executables"
+      />
       {error ? <p className="text-sm font-semibold text-status-risk">{error}</p> : null}
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Uploading…" : "Upload document"}

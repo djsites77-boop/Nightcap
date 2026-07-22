@@ -38,13 +38,12 @@ export async function markMatRemitted(matPeriodId: string) {
 
 export async function retryCalendarSync(calendarConnectionId: string) {
   const session = await requireSession();
-  const connection = await prisma.calendarConnection.findUniqueOrThrow({
-    where: { id: calendarConnectionId },
-  });
-  await assertOwnsProperty(connection.propertyId, session.user.id);
+  const { resolveCalendarConnectionOwner } = await import("@/lib/rental-units");
+  const { property } = await resolveCalendarConnectionOwner(calendarConnectionId);
+  if (property.userId !== session.user.id) throw new Error("Not authorized");
 
   await syncCalendarConnection(calendarConnectionId);
-  revalidatePath(`/properties/${connection.propertyId}`);
+  revalidatePath(`/properties/${property.id}`);
 }
 
 /** Manual sync for any connection (connected or error) — spec §5a. */
@@ -52,7 +51,12 @@ export async function syncPropertyCalendars(propertyId: string) {
   const session = await requireSession();
   await assertOwnsProperty(propertyId, session.user.id);
 
-  const connections = await prisma.calendarConnection.findMany({ where: { propertyId } });
+  const connections = await prisma.calendarConnection.findMany({
+    where: {
+      OR: [{ propertyId }, { rentalUnit: { propertyId } }],
+    },
+    select: { id: true },
+  });
   for (const c of connections) {
     await syncCalendarConnection(c.id).catch(() => undefined);
   }
@@ -65,14 +69,24 @@ export async function syncPropertyCalendars(propertyId: string) {
 export async function syncAllHostCalendars() {
   const session = await requireSession();
   const connections = await prisma.calendarConnection.findMany({
-    where: { property: { userId: session.user.id, archivedAt: null } },
-    select: { id: true, propertyId: true },
+    where: {
+      OR: [
+        { property: { userId: session.user.id, archivedAt: null } },
+        { rentalUnit: { property: { userId: session.user.id, archivedAt: null } } },
+      ],
+    },
+    select: {
+      id: true,
+      propertyId: true,
+      rentalUnit: { select: { propertyId: true } },
+    },
   });
 
   const propertyIds = new Set<string>();
   for (const c of connections) {
     await syncCalendarConnection(c.id).catch(() => undefined);
-    propertyIds.add(c.propertyId);
+    const pid = c.propertyId ?? c.rentalUnit?.propertyId;
+    if (pid) propertyIds.add(pid);
   }
 
   const year = new Date().getUTCFullYear();
@@ -159,8 +173,18 @@ export async function deleteCustomInspectionItem(itemId: string) {
 
 export async function getDocumentViewUrl(documentId: string): Promise<string> {
   const session = await requireSession();
-  const doc = await prisma.document.findUniqueOrThrow({ where: { id: documentId } });
-  await assertOwnsProperty(doc.propertyId, session.user.id);
+  const doc = await prisma.document.findUniqueOrThrow({
+    where: { id: documentId },
+    include: { expense: { select: { userId: true } } },
+  });
+
+  if (doc.propertyId) {
+    await assertOwnsProperty(doc.propertyId, session.user.id);
+  } else if (doc.expense?.userId === session.user.id) {
+    // host-level / general receipt
+  } else {
+    throw new Error("Not authorized");
+  }
 
   const storage = getDocumentStorage();
   return storage.getSignedUrl(doc.storageKey);
@@ -177,6 +201,7 @@ const uploadSchema = z.object({
     "other",
   ]),
   expiryDate: z.string().optional(),
+  label: z.string().optional(),
 });
 
 export async function uploadDocument(formData: FormData) {
@@ -185,23 +210,29 @@ export async function uploadDocument(formData: FormData) {
     propertyId: formData.get("propertyId"),
     docType: formData.get("docType"),
     expiryDate: formData.get("expiryDate") || undefined,
+    label: formData.get("label") || undefined,
   });
   if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join("; "));
 
   await assertOwnsProperty(parsed.data.propertyId, session.user.id);
 
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a file to upload.");
-  if (file.size > 8 * 1024 * 1024) throw new Error("File must be under 8MB.");
+  if (!(file instanceof File)) throw new Error("Choose a file to upload.");
+
+  const { assertSafeUpload } = await import("@/lib/safe-upload");
+  const safe = await assertSafeUpload(file);
+
+  const customLabel = parsed.data.label?.trim() || null;
 
   const doc = await prisma.document.create({
     data: {
       propertyId: parsed.data.propertyId,
       docType: parsed.data.docType,
-      fileName: file.name.slice(0, 180),
+      label: customLabel,
+      fileName: safe.fileName,
       storageKey: "",
-      mimeType: file.type || "application/octet-stream",
-      sizeBytes: file.size,
+      mimeType: safe.mimeType,
+      sizeBytes: safe.sizeBytes,
       expiryDate: parsed.data.expiryDate
         ? new Date(`${parsed.data.expiryDate}T00:00:00Z`)
         : null,
@@ -209,8 +240,7 @@ export async function uploadDocument(formData: FormData) {
   });
 
   const key = buildDocumentStorageKey(parsed.data.propertyId, doc.id, doc.fileName);
-  const buf = Buffer.from(await file.arrayBuffer());
-  await getDocumentStorage().put(key, buf, doc.mimeType);
+  await getDocumentStorage().put(key, safe.buffer, safe.mimeType);
   await prisma.document.update({
     where: { id: doc.id },
     data: { storageKey: key },

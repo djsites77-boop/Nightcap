@@ -13,6 +13,7 @@ import { MarkRemittedButton } from "@/components/property-detail/mark-remitted-b
 import { RetrySyncButton } from "@/components/property-detail/retry-sync-button";
 import { InspectionCheckbox } from "@/components/property-detail/inspection-checkbox";
 import { ViewDocumentButton } from "@/components/property-detail/view-document-button";
+import { DocumentListItem } from "@/components/documents/document-list-item";
 import { CsvImportForm } from "@/components/property-detail/csv-import-form";
 import {
   BookingRevenueForm,
@@ -28,10 +29,12 @@ import {
   CustomChecklistItemForm,
   DeleteChecklistItemButton,
 } from "@/components/property-detail/custom-checklist-item-form";
+import { RentalUnitsPanel } from "@/components/property-detail/rental-units-panel";
 import { ensureMatPeriods, recomputeMatLedger } from "@/lib/mat-ledger";
 import { ensureInspectionChecklist } from "@/lib/inspection";
 import { resolveEffectiveRule, type ComplianceRuleRow } from "@/lib/compliance/rules";
 import { ensurePropertyLocation } from "@/lib/property-location";
+import { ensurePartialUnitRooms } from "@/lib/rental-units";
 import { resolvePropertyThumbUrl } from "@/lib/property-thumb";
 import { PropertyThumb } from "@/components/property-thumb";
 import { PropertyMapEmbed, PropertyMapPlaceholder } from "@/components/property-map-embed";
@@ -46,8 +49,25 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export default async function PropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PropertyDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const { tab } = await searchParams;
+  const allowedTabs = new Set([
+    "overview",
+    "mat",
+    "checklist",
+    "documents",
+    "bookings",
+    "expenses",
+    "inventory",
+  ]);
+  const defaultTab = tab && allowedTabs.has(tab) ? tab : "overview";
   const session = await requireSession();
 
   const ownership = await prisma.property.findUnique({
@@ -60,6 +80,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
   await ensureInspectionChecklist(id);
   await ensureMatPeriods(id, year);
   await ensurePropertyLocation(id);
+  await ensurePartialUnitRooms(id);
   const { boundaryCrossingBookingIds } = await recomputeMatLedger(id, year);
 
   const property = await prisma.property.findUniqueOrThrow({
@@ -67,6 +88,10 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
     include: {
       municipality: true,
       calendarConnections: true,
+      rentalUnits: {
+        orderBy: { createdAt: "asc" },
+        include: { calendarConnections: true },
+      },
       bookings: { where: { cancelledAt: null }, orderBy: { checkIn: "asc" } },
       matPeriods: { orderBy: { periodStart: "asc" } },
       inspectionItems: { orderBy: [{ isCustom: "asc" }, { itemKey: "asc" }] },
@@ -78,7 +103,17 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
 
   const view = await getPropertyStatusView(id);
   const thumb = await resolvePropertyThumbUrl(property);
-  const erroredConnection = property.calendarConnections.find((c) => c.syncStatus === "error");
+  const allConnections = [
+    ...property.calendarConnections.map((c) => ({ ...c, roomName: null as string | null })),
+    ...property.rentalUnits.flatMap((u) =>
+      u.calendarConnections.map((c) => ({ ...c, roomName: u.name as string | null }))
+    ),
+  ];
+  const erroredConnection = allConnections.find((c) => c.syncStatus === "error");
+  const roomsOfferedTotal =
+    view.roomsOfferedTotal ??
+    property.rentalUnits.reduce((s, u) => s + u.roomsOffered, 0) ??
+    property.roomsOffered;
 
   const occupancyRules = await prisma.complianceRule.findMany({
     where: { municipalityId: property.municipalityId, ruleType: "occupancy_limit" },
@@ -191,7 +226,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </div>
       )}
 
-      <Tabs defaultValue="overview" className="min-w-0">
+      <Tabs defaultValue={defaultTab} className="min-w-0">
         <TabsList className="w-full">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="mat">Tax</TabsTrigger>
@@ -229,10 +264,18 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                     />
                   ) : (
                     <div className="py-6 text-center">
-                      <p className="text-5xl font-extrabold tabular-nums">{property.roomsOffered ?? "—"}</p>
+                      <p className="text-5xl font-extrabold tabular-nums">
+                        {roomsOfferedTotal ?? "—"}
+                      </p>
                       <p className="mt-2 text-sm font-semibold text-muted-foreground">
                         of {view.bedroomCap ?? "—"} bedrooms allowed
                       </p>
+                      {property.rentalUnits.length > 0 ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          across {property.rentalUnits.length} room listing
+                          {property.rentalUnits.length === 1 ? "" : "s"}
+                        </p>
+                      ) : null}
                     </div>
                   )}
                 </CardContent>
@@ -307,17 +350,21 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                   <SyncNowButton propertyId={property.id} />
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-3">
-                  {property.calendarConnections.length === 0 ? (
+                  {allConnections.length === 0 ? (
                     <p className="text-sm text-subtle-foreground">
-                      Connect an iCal URL once for this listing. After that, Nitecap refreshes it on a
-                      schedule — you only tap sync when you want an immediate pull.
+                      {property.unitType === "partial_unit"
+                        ? "Connect an iCal URL for each room listing below (or in Rooms). Nitecap refreshes on a schedule."
+                        : "Connect an iCal URL once for this listing. After that, Nitecap refreshes it on a schedule — you only tap sync when you want an immediate pull."}
                     </p>
                   ) : (
                     <>
-                      {property.calendarConnections.map((c) => (
+                      {allConnections.map((c) => (
                         <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
                           <div>
-                            <span className="capitalize font-semibold text-foreground">{c.platform}</span>
+                            <span className="font-semibold capitalize text-foreground">{c.platform}</span>
+                            {c.roomName ? (
+                              <span className="text-muted-foreground"> · {c.roomName}</span>
+                            ) : null}
                             {c.lastSyncedAt ? (
                               <p className="text-xs text-muted-foreground">
                                 Last synced {fmtDate(c.lastSyncedAt)}
@@ -330,9 +377,9 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
                         </div>
                       ))}
                       <p className="text-xs leading-snug text-muted-foreground">
-                        One connection per listing is enough. Background sync keeps bookings current;
-                        use Sync this listing only when you need a refresh now. From Properties you can
-                        sync your whole portfolio at once.
+                        {property.unitType === "partial_unit"
+                          ? "One calendar per room listing. Sync this listing pulls all of them."
+                          : "One connection per listing is enough. Use Sync this listing when you need a refresh now."}
                       </p>
                     </>
                   )}
@@ -340,6 +387,21 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               </Card>
             </div>
           </div>
+
+          {property.unitType === "partial_unit" ? (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Room listings</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3">
+                <RentalUnitsPanel
+                  propertyId={property.id}
+                  bedroomCap={view.bedroomCap}
+                  units={property.rentalUnits}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="mat" className="mt-5">
@@ -465,31 +527,41 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         <TabsContent value="documents" className="mt-5">
           <Card>
             <CardHeader>
-              <CardTitle>Documents</CardTitle>
+              <CardTitle>Documents for this listing</CardTitle>
             </CardHeader>
             <CardContent className="pt-3">
               {property.documents.length === 0 ? (
-                <p className="text-sm text-subtle-foreground">No documents uploaded yet.</p>
+                <p className="mb-2 text-sm text-subtle-foreground">
+                  No documents for this listing yet. Upload insurance, registration, floor plans, or other proof below.
+                </p>
               ) : (
-                <div className="flex flex-col">
+                <div className="mb-4 space-y-2.5">
                   {property.documents.map((doc) => (
-                    <div key={doc.id} className="flex flex-col gap-2 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-foreground">{doc.fileName}</div>
-                        <div className="text-xs text-subtle-foreground">
-                          {doc.mimeType} · {(doc.sizeBytes / 1024).toFixed(0)} KB
-                          {doc.expiryDate && ` · Expires ${fmtDate(doc.expiryDate)}`}
-                        </div>
-                      </div>
-                      <ViewDocumentButton documentId={doc.id} />
-                    </div>
+                    <DocumentListItem
+                      key={doc.id}
+                      showProperty={false}
+                      doc={{
+                        id: doc.id,
+                        docType: doc.docType,
+                        label: doc.label,
+                        fileName: doc.fileName,
+                        mimeType: doc.mimeType,
+                        sizeBytes: doc.sizeBytes,
+                        uploadedAt: doc.uploadedAt,
+                        expiryDate: doc.expiryDate,
+                        property: { id: property.id, nickname: property.nickname },
+                      }}
+                    />
                   ))}
                 </div>
               )}
               <DocumentUploadForm propertyId={property.id} />
               <div className="mt-4 flex items-start gap-2 text-xs text-subtle-foreground">
                 <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
-                <span>Served via short-lived signed URLs from private storage — not publicly accessible links.</span>
+                <span>
+                  PDF, images, CSV, Word, Excel only (max 8MB). Executables and scripts are blocked.
+                  Files stay in private storage — Open uses a short-lived link.
+                </span>
               </div>
             </CardContent>
           </Card>
