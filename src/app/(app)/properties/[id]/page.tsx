@@ -133,17 +133,17 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
             src={thumb?.src ?? null}
             kind={thumb?.kind ?? null}
             alt={property.nickname}
-            className="aspect-[21/9] w-full sm:aspect-[2.4/1]"
+            className="aspect-[16/9] w-full"
           />
         ) : property.latitude != null && property.longitude != null ? (
           <PropertyMapEmbed
             latitude={property.latitude}
             longitude={property.longitude}
             label={property.nickname}
-            className="aspect-[21/9] w-full sm:aspect-[2.4/1]"
+            className="aspect-[16/9] w-full"
           />
         ) : (
-          <PropertyMapPlaceholder className="aspect-[21/9] w-full sm:aspect-[2.4/1]" />
+          <PropertyMapPlaceholder className="aspect-[16/9] w-full" />
         )}
         <div className="space-y-3 p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-3">
@@ -169,7 +169,7 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
               latitude={property.latitude}
               longitude={property.longitude}
               label={property.nickname}
-              className="aspect-[16/9] w-full sm:aspect-[2.2/1]"
+              className="aspect-[16/9] w-full"
             />
           </CardContent>
         </Card>

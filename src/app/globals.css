@@ -278,3 +278,8 @@
     animation: none !important;
   }
 }
+
+/* Google Maps Embed — approximate dark theme without stretching Static bitmaps */
+.map-embed-dark {
+  filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92);
+}

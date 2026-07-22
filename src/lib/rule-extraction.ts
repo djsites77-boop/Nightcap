@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { resolveAnthropicApiKey } from "@/lib/platform-keys";
 
 /**
  * AI-assisted compliance rule extraction from pasted bylaw text — an admin
@@ -7,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
  * ComplianceRule directly. That mirrors the spec's own stance on [VERIFY]
  * figures: a rule sourced from a document (or a model's reading of one)
  * isn't compliant-grade until a human confirms it against the primary
- * source. Needs ANTHROPIC_API_KEY — not configured in this session.
+ * source. Uses Admin → Keys & APIs (anthropic), falling back to ANTHROPIC_API_KEY.
  */
 
 export interface RuleSuggestion {
@@ -51,15 +52,15 @@ const PROPOSE_RULE_TOOL: Anthropic.Tool = {
 };
 
 export async function suggestRuleFromText(bylawText: string, ruleTypeHint?: string): Promise<RuleSuggestion> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = await resolveAnthropicApiKey();
   if (!apiKey) {
     throw new Error(
-      "ANTHROPIC_API_KEY is not configured — add it to .env to enable AI-assisted rule extraction."
+      "Claude API key is not configured — add it under Admin → Keys & APIs (or ANTHROPIC_API_KEY in .env)."
     );
   }
 
   const client = new Anthropic({ apiKey });
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 
   const message = await client.messages.create({
     model,

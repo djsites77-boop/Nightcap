@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gauge, Users, Landmark, Layers, Percent, ArrowLeft } from "lucide-react";
+import { Gauge, Users, Landmark, Layers, Percent, KeyRound, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/tiers", label: "Tiers & pricing", icon: Layers },
   { href: "/admin/tax-rates", label: "Tax rates", icon: Percent },
   { href: "/admin/rules", label: "Jurisdictions", icon: Landmark },
+  { href: "/admin/keys", label: "Keys & APIs", icon: KeyRound },
 ];
 
 export function AdminNavLinks() {
