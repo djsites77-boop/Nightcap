@@ -29,10 +29,11 @@ export async function PropertyMapEmbed({
     zoom: "15",
   });
 
+  const iframeUrl = `https://www.google.com/maps/embed/v1/place?${params.toString()}`;
   return (
     <iframe
       title={`Map of ${label}`}
-      src={`https://www.google.com/maps/embed/v1/place?${params.toString()}`}
+      src={iframeUrl}
       className={`h-full w-full border-0 ${className ?? ""}`}
       loading="lazy"
       referrerPolicy="no-referrer-when-downgrade"
