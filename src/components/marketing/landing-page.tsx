@@ -12,8 +12,8 @@ const TIERS = [
     name: "Free",
     price: "$0",
     unit: "/mo",
-    blurb: "One property, full compliance tracking. No card required.",
-    features: ["1 property", "Night cap tracking", "Inspection checklist", "Manual booking entry"],
+    blurb: "Try Nightcap free.",
+    properties: "1 property",
     cta: "Start free",
     featured: false,
   },
@@ -21,8 +21,8 @@ const TIERS = [
     name: "Host",
     price: "$19",
     unit: "/mo",
-    blurb: "Predictable flat rate for hosts with a handful of listings.",
-    features: ["Up to 5 properties", "Multi-platform iCal sync", "Compliance alerts", "Document vault"],
+    blurb: "For a handful of listings.",
+    properties: "Up to 5 properties",
     cta: "Start free trial",
     featured: false,
   },
@@ -30,8 +30,8 @@ const TIERS = [
     name: "Growth",
     price: "$49",
     unit: "/mo",
-    blurb: "For multi-listing hosts who want everything in one place.",
-    features: ["Up to 15 properties", "Everything in Host", "PMS integrations", "Priority support"],
+    blurb: "For growing portfolios.",
+    properties: "Up to 15 properties",
     cta: "Start free trial",
     featured: true,
   },
@@ -39,8 +39,8 @@ const TIERS = [
     name: "Portfolio",
     price: "$99",
     unit: "/mo",
-    blurb: "Flat rate for managers running a real portfolio.",
-    features: ["Unlimited properties", "Everything in Growth", "Team seats", "CSV bulk import & export"],
+    blurb: "For large portfolios.",
+    properties: "Unlimited properties",
     cta: "Talk to us",
     featured: false,
   },
@@ -202,14 +202,12 @@ export function LandingPage() {
                 <span className="text-sm text-subtle-foreground">{tier.unit}</span>
               </p>
               <p className="mt-2 text-sm text-muted-foreground">{tier.blurb}</p>
-              <ul className="mt-5 flex-1 space-y-2 text-sm text-foreground">
-                {tier.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2">
-                    <span className="mt-0.5 text-accent">•</span>
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-5 flex-1">
+                <p className="text-sm font-semibold text-foreground">{tier.properties}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  All features on every tier: night cap tracking, tax tracking, inspection checklist, documents, expenses, and more.
+                </p>
+              </div>
               <Button asChild className="mt-6" variant={tier.featured ? "primary" : "subtle"}>
                 <Link href="/sign-up">{tier.cta}</Link>
               </Button>
