@@ -5,6 +5,7 @@ import { requireSession } from "@/lib/session";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { documentTypeLabel } from "@/lib/document-labels";
 
 export default async function DocumentsPage() {
   const session = await requireSession();
@@ -36,13 +37,14 @@ export default async function DocumentsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {documents.map((d) => {
             const expired = d.expiryDate != null && d.expiryDate < now;
             const soon =
               d.expiryDate != null &&
               !expired &&
-              (d.expiryDate.getTime() - now.getTime()) / (86400000) <= 30;
+              (d.expiryDate.getTime() - now.getTime()) / 86400000 <= 30;
+            const title = documentTypeLabel(d.docType, d.label);
             return (
               <Link key={d.id} href={`/properties/${d.property.id}`}>
                 <Card className="h-full transition-transform hover:-translate-y-0.5 hover:shadow-lift">
@@ -57,9 +59,9 @@ export default async function DocumentsPage() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-extrabold text-foreground">{d.fileName}</p>
-                      <p className="mt-0.5 text-xs font-semibold text-muted-foreground">
-                        {d.property.nickname} · {d.docType.replace(/_/g, " ")}
+                      <p className="truncate font-extrabold text-foreground">{title}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
+                        {d.property.nickname} · {d.fileName}
                       </p>
                       <div className="mt-2">
                         {d.expiryDate ? (

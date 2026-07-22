@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import {
@@ -24,7 +24,7 @@ import { BookingRevenueForm } from "@/components/property-detail/host-actions";
 
 export type BookingCalendarItem = {
   id: string;
-  checkIn: string;
+  checkIn: string; // ISO
   checkOut: string;
   nights: number;
   platform: "airbnb" | "vrbo" | "direct";
@@ -62,6 +62,7 @@ function fmtDate(iso: string): string {
   });
 }
 
+/** Nights occupied: check-in inclusive → check-out exclusive. */
 function bookingCoversDay(booking: BookingCalendarItem, day: Date): boolean {
   const start = startOfDay(parseISO(booking.checkIn));
   const end = startOfDay(parseISO(booking.checkOut));
@@ -260,7 +261,7 @@ export function BookingsPanel({
                           </p>
                           {b.crossesBoundary ? (
                             <p className="mt-1 text-[11px] font-semibold text-status-warning">
-                              Crosses {taxLabel} period – review proration
+                              Crosses {taxLabel} period — review proration
                             </p>
                           ) : null}
                         </div>
@@ -294,7 +295,7 @@ export function BookingsPanel({
                   {fmtDate(b.checkIn)}
                   {b.crossesBoundary ? (
                     <div className="mt-1 text-[11px] text-status-warning">
-                      Crosses {taxLabel} period – review proration
+                      Crosses {taxLabel} period — review proration
                     </div>
                   ) : null}
                 </TableCell>

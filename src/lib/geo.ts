@@ -1,10 +1,11 @@
 /**
  * Geocode + map thumbnail helpers for property listing cards.
- * Nominatim (OSM) for lat/lng; staticmap.openstreetmap.de for the image.
- * Always send a identifying User-Agent — Nominatim requires it.
+ * Nominatim (OSM) for lat/lng (free). Map images go through /api/maps/static
+ * which uses the Google Maps Platform key from platform admin when set.
  */
 
 export type Coords = { latitude: number; longitude: number };
+export type MapTheme = "light" | "dark";
 
 export async function geocodeAddress(address: string): Promise<Coords | null> {
   const q = address.trim();
@@ -21,7 +22,6 @@ export async function geocodeAddress(address: string): Promise<Coords | null> {
         "User-Agent": "NitecapSTR/0.1 (host compliance tracker; local-dev)",
         Accept: "application/json",
       },
-      // Nominatim asks for max 1 req/sec — fine for create-property cadence
       next: { revalidate: 0 },
     });
     if (!res.ok) return null;
@@ -37,14 +37,35 @@ export async function geocodeAddress(address: string): Promise<Coords | null> {
   }
 }
 
-/** Static map PNG URL for a property pin (no API key). */
-export function mapThumbnailUrl(latitude: number, longitude: number, width = 800, height = 420): string {
+/**
+ * Same-origin map proxy URL — the Google key stays server-side.
+ * Pass theme so Static Maps styling matches the app (light/dark).
+ */
+export function mapThumbnailUrl(
+  latitude: number,
+  longitude: number,
+  width = 640,
+  height = 360,
+  theme: MapTheme = "light"
+): string {
   const params = new URLSearchParams({
-    center: `${latitude},${longitude}`,
-    zoom: "15",
-    size: `${width}x${height}`,
-    maptype: "mapnik",
-    markers: `${latitude},${longitude},red-pushpin`,
+    lat: String(latitude),
+    lng: String(longitude),
+    w: String(width),
+    h: String(height),
+    theme,
   });
-  return `https://staticmap.openstreetmap.de/staticmap.php?${params.toString()}`;
+  return `/api/maps/static?${params.toString()}`;
+}
+
+/** Swap or set `theme` on an existing `/api/maps/static` URL. */
+export function withMapTheme(src: string, theme: MapTheme): string {
+  try {
+    const url = new URL(src, "http://nightcap.local");
+    if (!url.pathname.includes("/api/maps/static")) return src;
+    url.searchParams.set("theme", theme);
+    return `${url.pathname}?${url.searchParams.toString()}`;
+  } catch {
+    return src;
+  }
 }

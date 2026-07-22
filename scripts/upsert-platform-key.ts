@@ -2,7 +2,7 @@
  * One-shot upsert for a platform API key (encrypted at rest).
  *
  * Usage:
- *   GOOGLE_MAPS_API_KEY="AIzaSyBuPivMs85rDsVhdzSKcZRJwXlAp5g8RZY" pnpm exec tsx scripts/upsert-platform-key.ts google_maps
+ *   GOOGLE_MAPS_API_KEY="AIza…" pnpm exec tsx scripts/upsert-platform-key.ts google_maps
  */
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -39,7 +39,7 @@ async function main() {
     update: { label, ciphertext, iv, lastFour: lastFour(plaintext) },
   });
 
-  console.log(`Saved ${keyName} (·····${lastFour(plaintext)})`);
+  console.log(`Saved ${keyName} (···${lastFour(plaintext)})`);
   await prisma.$disconnect();
 }
 

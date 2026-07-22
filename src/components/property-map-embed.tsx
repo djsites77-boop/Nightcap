@@ -1,10 +1,9 @@
-import { MapPin } from "lucide-react";
 import { getPlatformApiKeyPlaintext } from "@/lib/platform-keys";
-import { mapThumbnailUrl } from "@/lib/geo";
+import { PropertyMapFrame, PropertyMapPlaceholder } from "@/components/property-map-frame";
 
 /**
- * Property location map. Prefers free Maps Embed API (interactive pin);
- * falls back to Static Maps image via our proxy if Embed isn't available.
+ * Property location map — Maps Embed API (sharp vector tiles, free).
+ * Avoids stretching a Static Maps bitmap across the hero.
  */
 export async function PropertyMapEmbed({
   latitude,
@@ -18,6 +17,7 @@ export async function PropertyMapEmbed({
   className?: string;
 }) {
   const key = await getPlatformApiKeyPlaintext("google_maps");
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitude},${longitude}`)}`;
 
   if (!key) {
     return <PropertyMapPlaceholder className={className} />;
@@ -27,28 +27,17 @@ export async function PropertyMapEmbed({
     key,
     q: `${latitude},${longitude}`,
     zoom: "15",
+    maptype: "roadmap",
   });
 
-  const iframeUrl = `https://www.google.com/maps/embed/v1/place?${params.toString()}`;
   return (
-    <iframe
-      title={`Map of ${label}`}
-      src={iframeUrl}
-      className={`h-full w-full border-0 ${className ?? ""}`}
-      loading="lazy"
-      referrerPolicy="no-referrer-when-downgrade"
-      allowFullScreen
+    <PropertyMapFrame
+      embedSrc={`https://www.google.com/maps/embed/v1/place?${params.toString()}`}
+      label={label}
+      className={className}
+      mapsHref={mapsHref}
     />
   );
 }
 
-export function PropertyMapPlaceholder({ className }: { className?: string }) {
-  return (
-    <div
-      className={`flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand via-brand to-[#2a3358] text-white/90 ${className ?? ""}`}
-    >
-      <MapPin className="size-8 opacity-80" strokeWidth={1.75} />
-      <span className="px-4 text-center text-xs font-semibold opacity-80">Map unavailable</span>
-    </div>
-  );
-}
+export { PropertyMapPlaceholder };

@@ -7,7 +7,19 @@ const globalForPrisma = globalThis as unknown as {
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+function createPrismaClient() {
+  return new PrismaClient({ adapter });
+}
+
+function isFreshClient(client: PrismaClient): boolean {
+  // After `prisma generate` adds models, a cached global client can be stale
+  // until the Next.js process restarts — detect and recreate.
+  return typeof (client as { platformApiKey?: unknown }).platformApiKey !== "undefined";
+}
+
+const existing = globalForPrisma.prisma;
+export const prisma =
+  existing && isFreshClient(existing) ? existing : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

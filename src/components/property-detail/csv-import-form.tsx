@@ -1,22 +1,31 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Label } from "@/components/ui/label";
+import { TypeaheadSelect } from "@/components/ui/typeahead-select";
+import { FilePickField } from "@/components/ui/file-pick-field";
 import { importTransactionCsv, type CsvImportResult } from "@/app/actions/csv-import";
+
+const EXPORT_OPTIONS = [
+  { value: "airbnb", label: "Airbnb" },
+  { value: "vrbo", label: "VRBO" },
+];
 
 export function CsvImportForm({ propertyId }: { propertyId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasFile, setHasFile] = useState(false);
 
   return (
     <form
       ref={formRef}
-      className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border-strong bg-surface-alt p-3"
-      action={(formData) => {
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
         setError(null);
         setResult(null);
         startTransition(async () => {
@@ -24,38 +33,51 @@ export function CsvImportForm({ propertyId }: { propertyId: string }) {
             const res = await importTransactionCsv(propertyId, formData);
             setResult(res);
             formRef.current?.reset();
-          } catch (e) {
-            setError(e instanceof Error ? e.message : "Import failed");
+            setHasFile(false);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Import failed");
           }
         });
       }}
     >
-      <UploadCloud className="size-4 text-subtle-foreground" />
-      <NativeSelect
-        name="platform"
-        defaultValue="airbnb"
-        className="h-9 min-h-9 w-auto rounded-xl px-2.5 pr-8 text-xs"
-      >
-        <option value="airbnb">Airbnb export</option>
-        <option value="vrbo">VRBO export</option>
-      </NativeSelect>
-      <input
-        type="file"
-        name="csv"
-        accept=".csv,text/csv"
-        required
-        className="flex-1 text-xs text-muted-foreground file:mr-2 file:rounded-xl file:border-0 file:bg-surface-sunken file:px-2.5 file:py-1.5 file:text-xs file:font-semibold"
-      />
-      <Button type="submit" size="sm" variant="ghost" disabled={pending}>
-        {pending ? "Importing…" : "Backfill revenue from CSV"}
+      <p className="text-sm font-semibold text-foreground">Backfill revenue from CSV</p>
+      <p className="text-xs font-medium leading-relaxed text-muted-foreground">
+        Export from Airbnb or VRBO, then drop the file here to fill in amounts on matching stays.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,11rem)_1fr]">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="csv-platform">Export from</Label>
+          <TypeaheadSelect
+            id="csv-platform"
+            name="platform"
+            options={EXPORT_OPTIONS}
+            defaultValue="airbnb"
+            placeholder="Airbnb or VRBO"
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>CSV file</Label>
+          <FilePickField
+            name="csv"
+            accept=".csv,text/csv"
+            required
+            label="Drop CSV or browse"
+            hint="Airbnb / VRBO transaction export"
+            onFileChange={(f) => setHasFile(Boolean(f))}
+          />
+        </div>
+      </div>
+      <Button type="submit" size="sm" disabled={pending || !hasFile} className="w-fit">
+        {pending ? "Importing…" : "Import revenue"}
       </Button>
       {result && (
-        <span className="w-full text-xs text-status-ok">
+        <p className="text-xs font-semibold text-status-ok">
           Matched {result.matched} of {result.totalRows} rows to existing bookings
-          {result.unmatched > 0 && ` — ${result.unmatched} unmatched (no booking on that date)`}.
-        </span>
+          {result.unmatched > 0 ? ` — ${result.unmatched} unmatched` : ""}.
+        </p>
       )}
-      {error && <span className="w-full text-xs text-status-risk">{error}</span>}
+      {error && <p className="text-xs font-semibold text-status-risk">{error}</p>}
     </form>
   );
 }
