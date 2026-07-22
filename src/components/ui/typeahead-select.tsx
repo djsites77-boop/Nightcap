@@ -19,6 +19,7 @@ export function TypeaheadSelect({
   placeholder = "Type to search…",
   className,
   required,
+  onValueChange,
 }: {
   id?: string;
   name: string;
@@ -27,6 +28,7 @@ export function TypeaheadSelect({
   placeholder?: string;
   className?: string;
   required?: boolean;
+  onValueChange?: (value: string) => void;
 }) {
   const initial = options.find((o) => o.value === defaultValue) ?? null;
   const [open, setOpen] = React.useState(false);
@@ -50,14 +52,18 @@ export function TypeaheadSelect({
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  function commit(next: string, label: string) {
+    setValue(next);
+    setQuery(label);
+    onValueChange?.(next);
+  }
+
   function pick(opt: TypeaheadOption) {
-    setValue(opt.value);
-    setQuery(opt.label);
+    commit(opt.value, opt.label);
     setOpen(false);
   }
 
   function onBlurQuery() {
-    // Resolve exact / unique match when leaving the field
     const q = query.trim().toLowerCase();
     const exact = options.find((o) => o.label.toLowerCase() === q || o.value.toLowerCase() === q);
     if (exact) {
@@ -89,8 +95,8 @@ export function TypeaheadSelect({
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
-            // Clear committed value until they pick / resolve
             setValue("");
+            onValueChange?.("");
           }}
           onBlur={onBlurQuery}
           onKeyDown={(e) => {

@@ -10,7 +10,12 @@ import { documentTypeLabel } from "@/lib/document-labels";
 export default async function DocumentsPage() {
   const session = await requireSession();
   const documents = await prisma.document.findMany({
-    where: { property: { userId: session.user.id, archivedAt: null } },
+    where: {
+      OR: [
+        { property: { userId: session.user.id, archivedAt: null } },
+        { expense: { userId: session.user.id } },
+      ],
+    },
     include: { property: { select: { id: true, nickname: true } } },
     orderBy: { uploadedAt: "desc" },
   });
@@ -45,8 +50,12 @@ export default async function DocumentsPage() {
               !expired &&
               (d.expiryDate.getTime() - now.getTime()) / 86400000 <= 30;
             const title = documentTypeLabel(d.docType, d.label);
+            const property = d.property;
             return (
-              <Link key={d.id} href={`/properties/${d.property.id}`}>
+              <Link
+                key={d.id}
+                href={property ? `/properties/${property.id}` : "/documents"}
+              >
                 <Card className="h-full transition-transform hover:-translate-y-0.5 hover:shadow-lift">
                   <CardContent className="flex gap-4 p-5">
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand">
@@ -61,7 +70,7 @@ export default async function DocumentsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-extrabold text-foreground">{title}</p>
                       <p className="mt-0.5 truncate text-xs font-semibold text-muted-foreground">
-                        {d.property.nickname} · {d.fileName}
+                        {property?.nickname ?? "General"} · {d.fileName}
                       </p>
                       <div className="mt-2">
                         {d.expiryDate ? (

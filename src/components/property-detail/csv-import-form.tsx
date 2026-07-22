@@ -18,9 +18,11 @@ export function CsvImportForm({ propertyId }: { propertyId: string }) {
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasFile, setHasFile] = useState(false);
+  const [formKey, setFormKey] = useState(0);
 
   return (
     <form
+      key={formKey}
       ref={formRef}
       className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-alt/40 p-4"
       onSubmit={(e) => {
@@ -32,8 +34,8 @@ export function CsvImportForm({ propertyId }: { propertyId: string }) {
           try {
             const res = await importTransactionCsv(propertyId, formData);
             setResult(res);
-            formRef.current?.reset();
             setHasFile(false);
+            setFormKey((k) => k + 1);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Import failed");
           }

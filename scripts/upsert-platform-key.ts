@@ -11,6 +11,7 @@ import { encryptSecret, lastFour } from "../src/lib/crypto";
 
 const KEY_LABELS: Record<string, string> = {
   google_maps: "Google Maps Platform",
+  anthropic: "Anthropic (Claude)",
 };
 
 async function main() {
@@ -20,7 +21,12 @@ async function main() {
     process.exit(1);
   }
 
-  const envName = keyName === "google_maps" ? "GOOGLE_MAPS_API_KEY" : `${keyName.toUpperCase()}_API_KEY`;
+  const envName =
+    keyName === "google_maps"
+      ? "GOOGLE_MAPS_API_KEY"
+      : keyName === "anthropic"
+        ? "ANTHROPIC_API_KEY"
+        : `${keyName.toUpperCase()}_API_KEY`;
   const plaintext = process.env[envName]?.trim();
   if (!plaintext) {
     console.error(`Set ${envName} in the environment (do not commit the value).`);

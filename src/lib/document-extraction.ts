@@ -1,6 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { DocumentType } from "@/generated/prisma/client";
+import { resolveAnthropicApiKey } from "@/lib/platform-keys";
 
 /**
  * AI-assisted document field extraction on upload. Proposes type, optional
@@ -57,8 +58,8 @@ const EXTRACT_DOCUMENT_TOOL: Anthropic.Tool = {
   },
 };
 
-export function isDocumentAiEnabled(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+export async function isDocumentAiEnabled(): Promise<boolean> {
+  return Boolean(await resolveAnthropicApiKey());
 }
 
 export async function extractDocumentFields(
@@ -66,7 +67,7 @@ export async function extractDocumentFields(
   mimeType: string,
   fileName: string
 ): Promise<DocumentExtraction | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = await resolveAnthropicApiKey();
   if (!apiKey) return null;
 
   const client = new Anthropic({ apiKey });

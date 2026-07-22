@@ -230,6 +230,7 @@ export function ExpenseForm({
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="category">Category</Label>
           <TypeaheadSelect
+            key={`category-${category}-${formKey}`}
             id="category"
             name="category"
             options={CATEGORY_OPTIONS}
@@ -365,6 +366,7 @@ export function ExpenseForm({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="inventoryCategory">Inventory category</Label>
             <TypeaheadSelect
+              key={`inv-cat-${inventoryCategory}-${formKey}`}
               id="inventoryCategory"
               name="inventoryCategory"
               options={INVENTORY_OPTIONS}

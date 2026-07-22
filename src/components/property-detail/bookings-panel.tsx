@@ -54,6 +54,21 @@ const PLATFORM_STYLE: Record<
   },
 };
 
+function sourceLabel(source: string): string {
+  switch (source) {
+    case "ical_import":
+      return "Calendar sync";
+    case "manual":
+      return "Manual";
+    case "csv_import":
+      return "CSV import";
+    case "pms_sync":
+      return "PMS sync";
+    default:
+      return source.replace(/_/g, " ");
+  }
+}
+
 function fmtDate(iso: string): string {
   return parseISO(iso).toLocaleDateString("en-CA", {
     year: "numeric",
@@ -302,7 +317,7 @@ export function BookingsPanel({
                 <TableCell className="font-mono tabular-nums">{fmtDate(b.checkOut)}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{b.nights}</TableCell>
                 <TableCell className="capitalize">{b.platform}</TableCell>
-                <TableCell>{b.source.replace("_", " ")}</TableCell>
+                <TableCell>{sourceLabel(b.source)}</TableCell>
                 <TableCell className="text-right">
                   <BookingRevenueForm bookingId={b.id} grossAmount={b.grossAmount} />
                 </TableCell>

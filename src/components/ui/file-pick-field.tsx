@@ -30,7 +30,15 @@ export function FilePickField({
   function take(next: File | null) {
     setFile(next);
     onFileChange?.(next);
-    if (!next && inputRef.current) inputRef.current.value = "";
+    if (inputRef.current) {
+      if (next) {
+        const dt = new DataTransfer();
+        dt.items.add(next);
+        inputRef.current.files = dt.files;
+      } else {
+        inputRef.current.value = "";
+      }
+    }
   }
 
   return (

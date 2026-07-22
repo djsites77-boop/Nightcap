@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { DocumentType } from "@/generated/prisma/client";
+import { resolveAnthropicApiKey } from "@/lib/platform-keys";
 
 /**
  * AI-assisted receipt extraction for expenses (Nightcap).
@@ -130,10 +131,10 @@ export async function suggestReceiptFields(
   mediaType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf",
   context?: { propertyNickname?: string; address?: string }
 ): Promise<ReceiptSuggestion> {
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  const apiKey = await resolveAnthropicApiKey();
   if (!apiKey) {
     throw new Error(
-      "ANTHROPIC_API_KEY is not configured — add it to .env to enable AI-assisted receipt scanning."
+      "Claude API key is not configured — add it under Admin → Keys & APIs (or ANTHROPIC_API_KEY in .env)."
     );
   }
 

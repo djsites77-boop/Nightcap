@@ -86,9 +86,9 @@ function KeyCard({ row }: { row: KeyRow }) {
           <p className="max-w-2xl text-sm text-muted-foreground">{row.description}</p>
         </div>
         {row.configured ? (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Configured · ···{row.lastFour}</Badge>
+          <Badge variant="ok">Configured · ···{row.lastFour}</Badge>
         ) : (
-          <Badge className="bg-amber-500/15 text-amber-800 dark:text-amber-200">Not set</Badge>
+          <Badge variant="warning">Not set</Badge>
         )}
       </CardHeader>
       <CardContent className="space-y-4">

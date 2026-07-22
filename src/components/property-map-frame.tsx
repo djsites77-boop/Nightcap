@@ -51,11 +51,6 @@ export function PropertyMapFrame({
         Open in Maps
         <ExternalLink className="size-3" strokeWidth={2} />
       </a>
-      <style jsx global>{`
-        .map-embed-dark {
-          filter: invert(0.92) hue-rotate(180deg) brightness(0.95) contrast(0.92);
-        }
-      `}</style>
     </div>
   );
 }
