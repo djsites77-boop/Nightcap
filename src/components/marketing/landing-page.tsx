@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +66,7 @@ const FEATURES = [
 ];
 
 export function LandingPage() {
-  const [address, setAddress] = require("react").useState("");
+  const [address, setAddress] = useState("");
 
   return (
     <div className="min-h-dvh bg-app-sky">
