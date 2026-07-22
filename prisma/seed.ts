@@ -355,6 +355,30 @@ async function main() {
   await prisma.property.deleteMany({ where: { userId: user.id } });
   console.log("  Cleared existing demo properties before reseed");
 
+  console.log("Seeding platform API keys...");
+  const googleMapsKey = process.env.GOOGLE_MAPS_EMBED_API_KEY;
+  if (googleMapsKey) {
+    const encrypted = encryptSecret(googleMapsKey);
+    await prisma.platformApiKey.upsert({
+      where: { keyName: "google_maps" },
+      create: {
+        keyName: "google_maps",
+        label: "Google Maps Embed API",
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        lastFour: lastFour(googleMapsKey),
+      },
+      update: {
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        lastFour: lastFour(googleMapsKey),
+      },
+    });
+    console.log(`  Google Maps API key seeded (last 4: ${lastFour(googleMapsKey)})`);
+  } else {
+    console.log("  GOOGLE_MAPS_EMBED_API_KEY not set — skipping Google Maps key");
+  }
+
   console.log("Seeding platform admin...");
   const adminEmail = "admin@nightcap.app";
   let admin = await prisma.user.findUnique({ where: { email: adminEmail } });
