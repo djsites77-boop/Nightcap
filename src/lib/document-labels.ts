@@ -1,24 +1,22 @@
-export function documentTypeLabel(docType: string, customLabel?: string | null): string {
-  if (customLabel) return customLabel;
+import type { DocumentType } from "@/generated/prisma/client";
 
-  const labels: Record<string, string> = {
-    fire_safety_cert: "Fire safety certificate",
-    insurance: "Insurance policy",
-    floor_plan: "Floor plan",
-    registration: "Registration",
-    receipt: "Receipt",
-    other: "Document",
-  };
+const TYPE_LABELS: Record<DocumentType, string> = {
+  fire_safety_cert: "Fire safety certificate",
+  insurance: "Insurance",
+  floor_plan: "Floor plan",
+  registration: "Registration / licence",
+  receipt: "Receipt",
+  other: "Other",
+};
 
-  return labels[docType] || "Document";
+export function documentTypeLabel(docType: DocumentType | string, label?: string | null): string {
+  const custom = label?.trim();
+  if (custom) return custom;
+  return TYPE_LABELS[docType as DocumentType] ?? String(docType).replace(/_/g, " ");
 }
 
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return Math.round((bytes / Math.pow(k, i)) * 10) / 10 + " " + sizes[i];
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
