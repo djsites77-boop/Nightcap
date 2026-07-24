@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BugsByAI — When the model gets it wrong</title>
+<style>
+  :root{
+    --bg:#0a0a0b;
+    --bg-elev:#101012;
+    --card:#141416;
+    --card-hover:#18181b;
+    --border:#1f1f23;
+    --border-soft:#242429;
+    --text:#f4f4f5;
+    --text-2:#a1a1aa;
+    --text-3:#71717a;
+    --text-4:#52525b;
+    --accent:#ff6b2c;
+    --accent-2:#ff9146;
+    --accent-glow:rgba(255,107,44,.14);
+    --grad:linear-gradient(135deg,#ff6b2c 0%,#ff9146 100%);
+    --grad-soft:linear-gradient(135deg,rgba(255,107,44,.16),rgba(255,145,70,.06));
+    --green:#2dd4a7;
+    --blue:#5b8def;
+    --purple:#a78bfa;
+    --red:#f87171;
+    --yellow:#fbbf24;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 4px 16px -4px rgba(0,0,0,.5),0 2px 6px -2px rgba(0,0,0,.4);
+    --shadow-lg:0 20px 50px -12px rgba(0,0,0,.7),0 8px 20px -8px rgba(0,0,0,.5);
+    --shadow-accent:0 8px 28px -8px rgba(255,107,44,.4);
+    --r-sm:8px;--r:12px;--r-lg:16px;--r-xl:20px;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    letter-spacing:-.011em;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(700px circle at 78% -8%,rgba(255,107,44,.09),transparent 55%),
+      radial-gradient(600px circle at 8% 5%,rgba(91,141,239,.05),transparent 50%);
+  }
+  ::selection{background:var(--accent-glow);color:var(--accent-2)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:10px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-4)}
+  button,input,textarea,select{font-family:inherit;font-size:inherit;color:inherit}
+  button{cursor:pointer;border:none;background:none}
+  a{color:inherit;text-decoration:none}
+
+  /* ---------- HEADER ---------- */
+  header{
+    position:sticky;top:0;z-index:100;
+    background:rgba(10,10,11,.72);
+    backdrop-filter:blur(20px) saturate(180%);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
+    border-bottom:1px solid var(--border);
+  }
+  .nav{
+    max-width:1240px;margin:0 auto;padding:0 24px;height:64px;
+    display:flex;align-items:center;gap:24px;
+  }
+  .logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:16.5px;letter-spacing:-.02em;flex-shrink:0}
+  .logo-mark{
+    width:34px;height:34px;border-radius:10px;background:var(--grad);
+    display:grid;place-items:center;box-shadow:var(--shadow-accent);position:relative;overflow:hidden;
+  }
+  .logo-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.28),transparent 60%)}
+  .logo-mark svg{width:18px;height:18px;position:relative;z-index:1}
+  .logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .nav-search{
+    flex:1;max-width:420px;position:relative;display:flex;align-items:center;
+  }
+  .nav-search svg{position:absolute;left:13px;width:16px;height:16px;color:var(--text-3);pointer-events:none}
+  .nav-search input{
+    width:100%;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--r-sm);
+    padding:9px 12px 9px 38px;color:var(--text);transition:.2s var(--ease);font-size:13.5px;
+  }
+  .nav-search input::placeholder{color:var(--text-3)}
+  .nav-search input:focus{outline:none;border-color:var(--border-soft);background:var(--card);box-shadow:0 0 0 3px rgba(255,107,44,.08)}
+  .nav-search kbd{
+    position:absolute;right:10px;font-family:var(--mono);font-size:11px;color:var(--text-3);
+    background:var(--card);border:1px solid var(--border-soft);border-radius:5px;padding:2px 6px;
+  }
+  .nav-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+  .nav-link{color:var(--text-2);font-size:13.5px;font-weight:500;transition:.15s;padding:8px 4px}
+  .nav-link:hover{color:var(--text)}
+  .avatar{
+    width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#5b8def,#a78bfa);
+    display:grid;place-items:center;font-size:12.5px;font-weight:600;color:#fff;flex-shrink:0;
+    border:2px solid var(--border-soft);
+  }
+  .btn-primary{
+    background:var(--grad);color:#fff;font-weight:600;font-size:13.5px;
+    padding:9px 16px;border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:7px;
+    box-shadow:var(--shadow-accent);transition:.2s var(--ease);white-space:nowrap;
+  }
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 32px -8px rgba(255,107,44,.55)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-primary svg{width:15px;height:15px}
+
+  /* ---------- LAYOUT ---------- */
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+  .hero{padding:40px 0 26px}
+  .hero h1{font-size:32px;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:8px}
+  .hero h1 .accent{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero p{color:var(--text-2);font-size:15px;max-width:560px}
+  .grid{display:grid;grid-template-columns:1fr 296px;gap:28px;align-items:start;padding-bottom:80px}
+
+  /* ---------- TOOLBAR ---------- */
+  .toolbar{
+    display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;
+    position:sticky;top:80px;z-index:40;
+    padding:12px;margin:-12px -12px 8px;
+    background:rgba(10,10,11,.6);backdrop-filter:blur(8px);border-radius:var(--r);
+  }
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{
+    padding:7px 13px;border-radius:99px;font-size:13px;font-weight:500;
+    background:var(--card);color:var(--text-2);border:1px solid var(--border);
+    transition:.18s var(--ease);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .chip:hover{color:var(--text);border-color:var(--border-soft);background:var(--card-hover)}
+  .chip.active{
+    background:var(--grad-soft);color:var(--accent-2);border-color:rgba(255,107,44,.35);
+    box-shadow:0 0 0 1px rgba(255,107,44,.12) inset;
+  }
+  .chip .dot{width:6px;height:6px;border-radius:50%}
+  .chip .count{font-size:11px;color:var(--text-3);font-weight:600;font-family:var(--mono)}
+  .chip.active .count{color:var(--accent)}
+  .toolbar-spacer{flex:1;min-width:8px}
+
+  /* dropdown */
+  .dd{position:relative}
+  .dd-trigger{
+    padding:7px 12px;border-radius:var(--r-sm);font-size:13px;font-weight:500;
+    background:var(--card);color:var(--text-2);border:1px solid var(--border);
+    display:inline-flex;align-items:center;gap:7px;transition:.18s var(--ease);white-space:nowrap;
+  }
+  .dd-trigger:hover{color:var(--text);border-color:var(--border-soft)}
+  .dd-trigger.on{color:var(--accent-2);border-color:rgba(255,107,44,.3);background:var(--grad-soft)}
+  .dd-trigger svg{width:14px;height:14px;transition:.2s}
+  .dd.open .dd-trigger .caret{transform:rotate(180deg)}
+  .dd-trigger .badge{
+    background:var(--accent);color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;
+    border-radius:8px;display:grid;place-items:center;padding:0 4px;
+  }
+  .dd-menu{
+    position:absolute;top:calc(100% + 8px);right:0;min-width:230px;z-index:60;
+    background:var(--card);border:1px solid var(--border-soft);border-radius:var(--r);
+    box-shadow:var(--shadow-lg);padding:6px;
+    opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;transform-origin:top right;
+    transition:.18s var(--ease);
+  }
+  .dd.open .dd-menu{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+  .dd-label{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;padding:9px 10px 5px}
+  .dd-item{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-sm);
+    font-size:13.5px;color:var(--text-2);transition:.13s;width:100%;text-align:left;
+  }
+  .dd-item:hover{background:var(--card-hover);color:var(--text)}
+  .dd-item .tick{width:15px;height:15px;color:var(--accent);opacity:0;flex-shrink:0}
+  .dd-item.sel{color:var(--text)}
+  .dd-item.sel .tick{opacity:1}
+  .dd-item .mi{width:16px;height:16px;color:var(--text-3);flex-shrink:0}
+  .dd-item .m-count{margin-left:auto;font-size:11px;color:var(--text-4);font-family:var(--mono)}
+  .dd-sep{height:1px;background:var(--border);margin:6px 4px}
+
+  /* ---------- FEED ---------- */
+  .feed-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding:0 2px}
+  .feed-meta .cnt{font-size:13px;color:var(--text-3)}
+  .feed-meta .cnt b{color:var(--text-2);font-weight:600}
+  .feed{display:flex;flex-direction:column;gap:14px}
+
+  .card{
+    background:var(--card);border-radius:var(--r-lg);padding:20px;
+    box-shadow:var(--shadow);position:relative;overflow:hidden;
+    transition:.22s var(--ease);border:1px solid transparent;
+    display:grid;grid-template-columns:auto 1fr;gap:16px;
+  }
+  .card::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:var(--grad);opacity:0;transition:.22s var(--ease);
+  }
+  .card:hover{
+    background:var(--card-hover);box-shadow:var(--shadow-lg);transform:translateY(-2px);
+  }
+  .card:hover::before{opacity:1}
+
+  .vote{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--r);
+    padding:8px 6px;width:52px;height:fit-content;transition:.18s var(--ease);
+  }
+  .vote:hover{border-color:var(--border-soft)}
+  .vote button{
+    width:28px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--text-3);transition:.15s;
+  }
+  .vote button:hover{background:var(--card-hover);color:var(--text)}
+  .vote button svg{width:17px;height:17px}
+  .vote .num{font-size:15px;font-weight:700;color:var(--text);font-family:var(--mono);letter-spacing:-.02em}
+  .vote.voted{background:var(--grad-soft);border-color:rgba(255,107,44,.35)}
+  .vote.voted .up{color:var(--accent)}
+  .vote.voted .num{color:var(--accent-2)}
+
+  .card-body{min-width:0}
+  .card-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+  .tag{
+    font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;letter-spacing:.01em;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .tag .dot{width:6px;height:6px;border-radius:50%}
+  .tag-model{background:rgba(167,139,250,.12);color:#c4b5fd}
+  .tag-cat{background:var(--bg-elev);color:var(--text-2);border:1px solid var(--border)}
+  .sev{font-size:11px;font-weight:600;padding:3px 9px;border-radius:6px;display:inline-flex;align-items:center;gap:5px}
+  .sev-high{background:rgba(248,113,113,.12);color:#fca5a5}
+  .sev-med{background:rgba(251,191,36,.12);color:#fcd34d}
+  .sev-low{background:rgba(45,212,167,.12);color:#6ee7c0}
+  .card h3{font-size:17px;font-weight:650;letter-spacing:-.02em;line-height:1.3;margin-bottom:7px}
+  .card:hover h3{color:var(--accent-2)}
+  .card h3 a{transition:.15s}
+  .excerpt{color:var(--text-2);font-size:14px;line-height:1.55;margin-bottom:14px}
+  .code-snip{
+    background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);
+    padding:11px 13px;font-family:var(--mono);font-size:12.5px;color:var(--text-2);
+    margin-bottom:14px;overflow-x:auto;line-height:1.6;
+  }
+  .code-snip .cm{color:var(--text-4)}
+  .code-snip .er{color:#fca5a5}
+  .code-snip .st{color:#6ee7c0}
+  .card-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .author{display:flex;align-items:center;gap:8px}
+  .author .ava{
+    width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+    font-size:10.5px;font-weight:600;color:#fff;flex-shrink:0;
+  }
+  .author .meta{font-size:12.5px;color:var(--text-3)}
+  .author .meta b{color:var(--text-2);font-weight:600}
+  .foot-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+  .fa{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-3);
+    padding:6px 9px;border-radius:7px;transition:.15s;font-weight:500;
+  }
+  .fa:hover{background:var(--bg-elev);color:var(--text)}
+  .fa svg{width:15px;height:15px}
+  .fa.solved{color:var(--green)}
+
+  /* ---------- SIDEBAR ---------- */
+  aside{position:sticky;top:88px;display:flex;flex-direction:column;gap:16px}
+  .panel{
+    background:var(--card);border-radius:var(--r-lg);padding:18px;box-shadow:var(--shadow);
+  }
+  .panel-title{
+    font-size:12px;font-weight:600;color:var(--text-3);text-transform:uppercase;
+    letter-spacing:.06em;margin-bottom:14px;display:flex;align-items:center;gap:7px;
+  }
+  .panel-title svg{width:14px;height:14px;color:var(--accent)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{
+    background:var(--bg-elev);border-radius:var(--r);padding:13px;border:1px solid var(--border);
+    transition:.18s var(--ease);
+  }
+  .stat:hover{border-color:var(--border-soft);transform:translateY(-1px)}
+  .stat .n{font-size:22px;font-weight:800;letter-spacing:-.03em;font-family:var(--mono);line-height:1}
+  .stat .n.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .stat .l{font-size:11.5px;color:var(--text-3);margin-top:6px;font-weight:500}
+  .stat .t{font-size:10.5px;color:var(--green);margin-top:3px;font-weight:600;display:flex;align-items:center;gap:3px}
+
+  .lead{display:flex;flex-direction:column;gap:2px}
+  .lead-row{display:flex;align-items:center;gap:11px;padding:8px 8px;border-radius:var(--r-sm);transition:.15s;margin:0 -8px}
+  .lead-row:hover{background:var(--bg-elev)}
+  .lead-rank{font-size:12px;font-weight:700;color:var(--text-4);width:16px;font-family:var(--mono);text-align:center}
+  .lead-row:nth-child(1) .lead-rank{color:var(--accent)}
+  .lead .ava{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0}
+  .lead-info{min-width:0;flex:1}
+  .lead-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lead-sub{font-size:11px;color:var(--text-3)}
+  .lead-pts{font-size:12px;font-weight:700;color:var(--accent-2);font-family:var(--mono)}
+
+  .tags-cloud{display:flex;flex-wrap:wrap;gap:7px}
+  .tc{
+    font-size:12px;padding:5px 10px;border-radius:99px;background:var(--bg-elev);
+    border:1px solid var(--border);color:var(--text-2);transition:.15s;cursor:pointer;
+  }
+  .tc:hover{color:var(--accent-2);border-color:rgba(255,107,44,.3)}
+  .tc .n{color:var(--text-4);font-family:var(--mono);font-size:11px;margin-left:3px}
+
+  .cta-panel{
+    background:var(--grad-soft);border:1px solid rgba(255,107,44,.2);border-radius:var(--r-lg);
+    padding:18px;text-align:center;
+  }
+  .cta-panel h4{font-size:15px;font-weight:700;margin-bottom:5px}
+  .cta-panel p{font-size:12.5px;color:var(--text-2);margin-bottom:14px;line-height:1.5}
+  .cta-panel .btn-primary{width:100%;justify-content:center}
+
+  /* ---------- MODAL ---------- */
+  .overlay{
+    position:fixed;inset:0;z-index:200;background:rgba(5,5,6,.72);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    display:grid;place-items:center;padding:24px;
+    opacity:0;pointer-events:none;transition:.25s var(--ease);
+  }
+  .overlay.open{opacity:1;pointer-events:auto}
+  .modal{
+    width:100%;max-width:600px;max-height:calc(100vh - 48px);overflow-y:auto;
+    background:var(--bg-elev);border:1px solid var(--border-soft);border-radius:var(--r-xl);
+    box-shadow:var(--shadow-lg);transform:translateY(16px) scale(.97);transition:.28s var(--ease);
+  }
+  .overlay.open .modal{transform:translateY(0) scale(1)}
+  .modal-head{
+    padding:22px 24px 18px;border-bottom:1px solid var(--border);
+    display:flex;align-items:flex-start;gap:14px;position:sticky;top:0;
+    background:var(--bg-elev);z-index:2;border-radius:var(--r-xl) var(--r-xl) 0 0;
+  }
+  .modal-head .ic{
+    width:40px;height:40px;border-radius:11px;background:var(--grad);display:grid;place-items:center;
+    box-shadow:var(--shadow-accent);flex-shrink:0;
+  }
+  .modal-head .ic svg{width:20px;height:20px}
+  .modal-head h2{font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.3}
+  .modal-head p{font-size:13px;color:var(--text-3);margin-top:2px}
+  .modal-close{
+    margin-left:auto;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;
+    color:var(--text-3);transition:.15s;flex-shrink:0;
+  }
+  .modal-close:hover{background:var(--card);color:var(--text)}
+  .modal-close svg{width:18px;height:18px}
+  .modal-body{padding:22px 24px}
+  .field{margin-bottom:20px}
+  .field-label{font-size:13px;font-weight:600;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .field-label .req{color:var(--accent)}
+  .field-label .opt{color:var(--text-4);font-weight:500;font-size:11.5px}
+  .hint{font-size:12px;color:var(--text-3);margin-top:7px;line-height:1.5}
+  input.inp,textarea.inp,select.inp{
+    width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+    padding:11px 13px;color:var(--text);transition:.18s var(--ease);font-size:14px;
+  }
+  input.inp::placeholder,textarea.inp::placeholder{color:var(--text-4)}
+  .inp:focus{outline:none;border-color:rgba(255,107,44,.5);background:var(--bg-elev);box-shadow:0 0 0 3px var(--accent-glow)}
+  textarea.inp{resize:vertical;min-height:104px;line-height:1.55;font-family:inherit}
+  .char-count{font-size:11px;color:var(--text-4);text-align:right;margin-top:6px;font-family:var(--mono)}
+
+  /* model selection grid */
+  .model-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+  .model-opt{
+    background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px;
+    display:flex;align-items:center;gap:11px;transition:.16s var(--ease);text-align:left;position:relative;
+  }
+  .model-opt:hover{border-color:var(--border-soft);background:var(--card-hover)}
+  .model-opt.sel{border-color:rgba(255,107,44,.5);background:var(--grad-soft)}
+  .model-opt.sel::after{
+    content:"";position:absolute;top:9px;right:9px;width:16px;height:16px;border-radius:50%;
+    background:var(--accent);
+    -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center/11px no-repeat;
+            mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='20 6 9 17 4 12'/></svg>") center/11px no-repeat;
+  }
+  .model-logo{
+    width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;
+    font-weight:800;font-size:14px;color:#fff;
+  }
+  .model-info{min-width:0}
+  .model-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .model-vendor{font-size:11.5px;color:var(--text-3)}
+
+  /* segmented severity */
+  .seg{display:flex;gap:7px}
+  .seg-opt{
+    flex:1;padding:10px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--card);
+    font-size:13px;font-weight:600;transition:.16s var(--ease);display:flex;align-items:center;justify-content:center;gap:7px;color:var(--text-2);
+  }
+  .seg-opt:hover{border-color:var(--border-soft)}
+  .seg-opt .dot{width:8px;height:8px;border-radius:50%}
+  .seg-opt.sel-low{border-color:rgba(45,212,167,.5);background:rgba(45,212,167,.1);color:#6ee7c0}
+  .seg-opt.sel-med{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.1);color:#fcd34d}
+  .seg-opt.sel-high{border-color:rgba(248,113,113,.5);background:rgba(248,113,113,.1);color:#fca5a5}
+
+  .cat-select{position:relative}
+  .cat-select select{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:38px}
+  .cat-select svg{position:absolute;right:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--text-3);pointer-events:none}
+
+  .modal-foot{
+    padding:16px 24px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;
+    position:sticky;bottom:0;background:var(--bg-elev);border-radius:0 0 var(--r-xl) var(--r-xl);
+  }
+  .modal-foot .note{font-size:12px;color:var(--text-4);display:flex;align-items:center;gap:6px}
+  .modal-foot .note svg{width:14px;height:14px}
+  .modal-foot .spacer{flex:1}
+  .btn-ghost{padding:10px 16px;border-radius:var(--r-sm);font-size:13.5px;font-weight:600;color:var(--text-2);transition:.15s}
+  .btn-ghost:hover{background:var(--card);color:var(--text)}
+
+  /* toast */
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120%);
+    background:var(--card);border:1px solid var(--border-soft);border-radius:var(--r);
+    padding:13px 18px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:11px;
+    z-index:300;transition:.4s var(--ease);font-size:14px;font-weight:500;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast .ok{width:22px;height:22px;border-radius:50%;background:var(--green);display:grid;place-items:center;flex-shrink:0}
+  .toast .ok svg{width:13px;height:13px;color:#04140f}
+
+  .fab{
+    position:fixed;bottom:24px;right:24px;z-index:90;width:56px;height:56px;border-radius:50%;
+    background:var(--grad);box-shadow:var(--shadow-accent);display:none;place-items:center;transition:.2s var(--ease);
+  }
+  .fab:active{transform:scale(.92)}
+  .fab svg{width:24px;height:24px}
+
+  @media(max-width:980px){
+    .grid{grid-template-columns:1fr}
+    aside{position:static;order:-1;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .cta-panel{display:none}
+  }
+  @media(max-width:680px){
+    .nav-search{display:none}
+    .hero h1{font-size:26px}
+    .nav-btn-text{display:none}
+    .btn-primary{padding:9px 11px}
+    aside{grid-template-columns:1fr}
+    .toolbar{top:72px}
+    .card{padding:16px;gap:12px}
+    .model-grid{grid-template-columns:1fr}
+    .fab{display:grid}
+    .header-cta{display:none}
+    .toolbar .chips .chip:nth-child(n+4){display:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="nav">
+    <a href="#" class="logo">
+      <span class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 2l1.5 2.5M16 2l-1.5 2.5"/><path d="M12 20v-9"/>
+          <rect x="8" y="6" width="8" height="10" rx="4"/><path d="M4 10h4M16 10h4M5 15l3-1M19 15l-3-1M5 6l3 2M19 6l-3 2"/>
+        </svg>
+      </span>
+      <span>Bugs<b>ByAI</b></span>
+    </a>
+    <div class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input type="text" placeholder="Search bugs, models, categories...">
+      <kbd>⌘K</kbd>
+    </div>
+    <div class="nav-right">
+      <a href="#" class="nav-link">Explore</a>
+      <a href="#" class="nav-link">Leaderboard</a>
+      <button class="btn-primary header-cta" onclick="openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="nav-btn-text">Report a bug</span>
+      </button>
+      <div class="avatar">DJ</div>
+    </div>
+  </nav>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>When the model <span class="accent">gets it wrong</span></h1>
+    <p>A community-run tracker for AI failures — hallucinations, broken tool calls, refusals, and the weird stuff in between. Reproduce, vote, resolve.</p>
+  </section>
+
+  <div class="grid">
+    <!-- MAIN -->
+    <main>
+      <div class="toolbar">
+        <div class="chips">
+          <button class="chip active" onclick="toggleChip(this)"><span class="dot" style="background:var(--accent)"></span>All <span class="count">1,284</span></button>
+          <button class="chip" onclick="toggleChip(this)"><span class="dot" style="background:var(--red)"></span>Hallucination <span class="count">412</span></button>
+          <button class="chip" onclick="toggleChip(this)"><span class="dot" style="background:var(--blue)"></span>Tool calls <span class="count">237</span></button>
+          <button class="chip" onclick="toggleChip(this)"><span class="dot" style="background:var(--purple)"></span>Refusal <span class="count">156</span></button>
+          <button class="chip" onclick="toggleChip(this)"><span class="dot" style="background:var(--yellow)"></span>Reasoning <span class="count">198</span></button>
+        </div>
+
+        <div class="toolbar-spacer"></div>
+
+        <!-- Advanced filter dropdown -->
+        <div class="dd" id="ddFilter">
+          <button class="dd-trigger" onclick="toggleDD('ddFilter')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+            Filters <span class="badge">2</span>
+            <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="dd-menu">
+            <div class="dd-label">Model</div>
+            <button class="dd-item sel" onclick="pickFilter(this)"><span class="mi">⬡</span>All models<span class="m-count">1.2k</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi" style="color:#d97757">✦</span>Claude<span class="m-count">341</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi" style="color:#10a37f">◉</span>GPT<span class="m-count">402</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi" style="color:#4285f4">✧</span>Gemini<span class="m-count">228</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <div class="dd-sep"></div>
+            <div class="dd-label">Severity</div>
+            <button class="dd-item sel" onclick="pickFilter(this)"><span class="mi" style="color:var(--red)">●</span>High priority<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi" style="color:var(--yellow)">●</span>Medium<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <div class="dd-sep"></div>
+            <div class="dd-label">Status</div>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi" style="color:var(--green)">✓</span>Resolved only<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickFilter(this)"><span class="mi">○</span>Open only<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+          </div>
+        </div>
+
+        <!-- Sort dropdown -->
+        <div class="dd" id="ddSort">
+          <button class="dd-trigger" onclick="toggleDD('ddSort')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h11M3 12h7M3 18h4M17 6v12M17 18l4-4M17 18l-4-4"/></svg>
+            <span id="sortLabel">Trending</span>
+            <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="dd-menu">
+            <div class="dd-label">Sort by</div>
+            <button class="dd-item sel" onclick="pickSort(this,'Trending')">🔥 Trending<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickSort(this,'Newest')">🕐 Newest<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickSort(this,'Most voted')">⬆ Most voted<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+            <button class="dd-item" onclick="pickSort(this,'Unresolved')">◎ Unresolved<svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="feed-meta">
+        <div class="cnt">Showing <b>1,284</b> reports · <b>2</b> filters active</div>
+      </div>
+
+      <div class="feed">
+        <!-- CARD 1 -->
+        <article class="card">
+          <div class="vote" onclick="vote(this)">
+            <button class="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+            <span class="num">847</span>
+            <button class="down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>
+          </div>
+          <div class="card-body">
+            <div class="card-top">
+              <span class="tag tag-model"><span class="dot" style="background:#d97757"></span>Claude Opus 4</span>
+              <span class="tag tag-cat">Tool calls</span>
+              <span class="sev sev-high">● High</span>
+            </div>
+            <h3><a href="#">Model invents a <code style="font-family:var(--mono);color:var(--accent-2)">delete_all()</code> tool that was never in the schema</a></h3>
+            <p class="excerpt">Gave it 4 read-only tools. Under mild pressure ("just clean this up") it confidently emitted a tool call to <b>delete_all</b> with perfectly-formed JSON args. The tool does not exist. No hallucination flag, full confidence.</p>
+            <div class="code-snip"><span class="cm">// available_tools: [list_files, read_file, search, grep]</span><br><span class="er">→ tool_call:</span> delete_all(<span class="st">{ path: "/", recursive: true }</span>) <span class="cm">// ← does not exist</span></div>
+            <div class="card-foot">
+              <div class="author">
+                <div class="ava" style="background:linear-gradient(135deg,#f87171,#fb923c)">MK</div>
+                <div class="meta"><b>maya.kern</b> · 3h ago</div>
+              </div>
+              <div class="foot-actions">
+                <span class="fa solved"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Resolved</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>34</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg>Share</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 2 -->
+        <article class="card">
+          <div class="vote" onclick="vote(this)">
+            <button class="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+            <span class="num">612</span>
+            <button class="down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>
+          </div>
+          <div class="card-body">
+            <div class="card-top">
+              <span class="tag tag-model"><span class="dot" style="background:#10a37f"></span>GPT-4o</span>
+              <span class="tag tag-cat">Hallucination</span>
+              <span class="sev sev-med">● Medium</span>
+            </div>
+            <h3><a href="#">Cites a Supreme Court case that does not exist — with a fake docket number</a></h3>
+            <p class="excerpt">Asked for precedent on a contract dispute. It produced <i>Halberstam v. Meridian Trust, 601 U.S. 214 (2023)</i> complete with a quoted holding and page cites. None of it is real. When challenged, it doubled down twice before admitting uncertainty.</p>
+            <div class="card-foot">
+              <div class="author">
+                <div class="ava" style="background:linear-gradient(135deg,#5b8def,#38bdf8)">TR</div>
+                <div class="meta"><b>t.ramos</b> · 7h ago</div>
+              </div>
+              <div class="foot-actions">
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>Open</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>58</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg>Share</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- CARD 3 -->
+        <article class="card">
+          <div class="vote" onclick="vote(this)">
+            <button class="up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+            <span class="num">395</span>
+            <button class="down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></button>
+          </div>
+          <div class="card-body">
+            <div class="card-top">
+              <span class="tag tag-model"><span class="dot" style="background:#4285f4"></span>Gemini 2.5 Pro</span>
+              <span class="tag tag-cat">Refusal</span>
+              <span class="sev sev-low">● Low</span>
+            </div>
+            <h3><a href="#">Refuses to write a bash <code style="font-family:var(--mono);color:var(--accent-2)">rm</code> command, calls it "potentially destructive"</a></h3>
+            <p class="excerpt">Simple ask: a script to clear <b>node_modules</b> across a monorepo. It lectured about data loss and offered to "help think through whether deletion is truly necessary." Same prompt worked fine the day before — looks like an over-tuned safety layer.</p>
+            <div class="card-foot">
+              <div class="author">
+                <div class="ava" style="background:linear-gradient(135deg,#a78bfa,#f472b6)">JL</div>
+                <div class="meta"><b>jin.lee</b> · 1d ago</div>
+              </div>
+              <div class="foot-actions">
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>Open</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>21</span>
+                <span class="fa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg>Share</span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </main>
+
+    <!-- SIDEBAR -->
+    <aside>
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg>
+          This week
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n grad">1,284</div><div class="l">Total reports</div><div class="t">▲ 12% vs last wk</div></div>
+          <div class="stat"><div class="n">61%</div><div class="l">Resolved</div><div class="t">▲ 4%</div></div>
+          <div class="stat"><div class="n">3.2k</div><div class="l">Reproductions</div><div class="t">▲ 21%</div></div>
+          <div class="stat"><div class="n">18</div><div class="l">Models tracked</div><div class="t" style="color:var(--text-3)">— steady</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18a3 3 0 01-3-3V9h18v6a3 3 0 01-3 3z"/><path d="M9 22h6"/></svg>
+          Top hunters
+        </div>
+        <div class="lead">
+          <div class="lead-row">
+            <span class="lead-rank">1</span>
+            <div class="ava" style="background:linear-gradient(135deg,#f87171,#fb923c)">MK</div>
+            <div class="lead-info"><div class="lead-name">maya.kern</div><div class="lead-sub">42 confirmed</div></div>
+            <span class="lead-pts">9,240</span>
+          </div>
+          <div class="lead-row">
+            <span class="lead-rank">2</span>
+            <div class="ava" style="background:linear-gradient(135deg,#5b8def,#38bdf8)">TR</div>
+            <div class="lead-info"><div class="lead-name">t.ramos</div><div class="lead-sub">37 confirmed</div></div>
+            <span class="lead-pts">7,810</span>
+          </div>
+          <div class="lead-row">
+            <span class="lead-rank">3</span>
+            <div class="ava" style="background:linear-gradient(135deg,#2dd4a7,#22d3ee)">AV</div>
+            <div class="lead-info"><div class="lead-name">a.volkov</div><div class="lead-sub">29 confirmed</div></div>
+            <span class="lead-pts">6,455</span>
+          </div>
+          <div class="lead-row">
+            <span class="lead-rank">4</span>
+            <div class="ava" style="background:linear-gradient(135deg,#a78bfa,#f472b6)">JL</div>
+            <div class="lead-info"><div class="lead-name">jin.lee</div><div class="lead-sub">24 confirmed</div></div>
+            <span class="lead-pts">5,120</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.6 13.4L11 3.8V3H4v7h.8l9.6 9.6a2 2 0 002.8 0l3.4-3.4a2 2 0 000-2.8z"/><circle cx="7.5" cy="6.5" r="1"/></svg>
+          Trending tags
+        </div>
+        <div class="tags-cloud">
+          <span class="tc">hallucination<span class="n">412</span></span>
+          <span class="tc">json-mode<span class="n">184</span></span>
+          <span class="tc">tool-calls<span class="n">237</span></span>
+          <span class="tc">refusal<span class="n">156</span></span>
+          <span class="tc">context-loss<span class="n">98</span></span>
+          <span class="tc">math<span class="n">143</span></span>
+          <span class="tc">citations<span class="n">76</span></span>
+        </div>
+      </div>
+
+      <div class="cta-panel">
+        <h4>Found something broken?</h4>
+        <p>Report it in 30 seconds. The community reproduces, votes, and vendors are watching.</p>
+        <button class="btn-primary" onclick="openModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Report a bug
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- FAB (mobile) -->
+<button class="fab" onclick="openModal()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.5 2.5M16 2l-1.5 2.5"/><rect x="8" y="6" width="8" height="10" rx="4"/><path d="M4 10h4M16 10h4M12 11v9"/></svg>
+      </div>
+      <div>
+        <h2>Report an AI bug</h2>
+        <p>Help others avoid the same failure. Be specific and reproducible.</p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Model selection -->
+      <div class="field">
+        <div class="field-label">Which model? <span class="req">*</span></div>
+        <div class="model-grid" id="modelGrid">
+          <button class="model-opt sel" onclick="pickModel(this)">
+            <span class="model-logo" style="background:linear-gradient(135deg,#d97757,#c15f3c)">✦</span>
+            <span class="model-info"><span class="model-name">Claude</span><span class="model-vendor">Anthropic</span></span>
+          </button>
+          <button class="model-opt" onclick="pickModel(this)">
+            <span class="model-logo" style="background:linear-gradient(135deg,#10a37f,#0d8c6d)">◉</span>
+            <span class="model-info"><span class="model-name">GPT</span><span class="model-vendor">OpenAI</span></span>
+          </button>
+          <button class="model-opt" onclick="pickModel(this)">
+            <span class="model-logo" style="background:linear-gradient(135deg,#4285f4,#2b6cd4)">✧</span>
+            <span class="model-info"><span class="model-name">Gemini</span><span class="model-vendor">Google</span></span>
+          </button>
+          <button class="model-opt" onclick="pickModel(this)">
+            <span class="model-logo" style="background:linear-gradient(135deg,#71717a,#52525b)">＋</span>
+            <span class="model-info"><span class="model-name">Other</span><span class="model-vendor">Llama, Mistral…</span></span>
+          </button>
+        </div>
+        <div class="cat-select" style="margin-top:9px">
+          <select class="inp" id="modelVersion">
+            <option>Claude Opus 4</option>
+            <option>Claude Sonnet 4</option>
+            <option>Claude Haiku 4</option>
+            <option>Not sure / other version</option>
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="hint">Pick the provider, then the exact version — precise reports get reproduced faster.</div>
+      </div>
+
+      <!-- Title -->
+      <div class="field">
+        <div class="field-label">Title <span class="req">*</span></div>
+        <input class="inp" type="text" placeholder="e.g. Model invents a tool that was never in the schema" maxlength="90" oninput="document.getElementById('titleCount').textContent=this.value.length+'/90'">
+        <div class="char-count" id="titleCount">0/90</div>
+      </div>
+
+      <!-- Category + Severity -->
+      <div class="field" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div class="field-label">Category <span class="req">*</span></div>
+          <div class="cat-select">
+            <select class="inp">
+              <option>Hallucination</option>
+              <option>Tool calls</option>
+              <option>Refusal / over-refusal</option>
+              <option>Reasoning error</option>
+              <option>Context loss</option>
+              <option>Formatting / JSON</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Severity <span class="req">*</span></div>
+          <div class="seg" id="sevSeg">
+            <button class="seg-opt" data-sev="low" onclick="pickSev(this)"><span class="dot" style="background:var(--green)"></span>Low</button>
+            <button class="seg-opt sel-med" data-sev="med" onclick="pickSev(this)"><span class="dot" style="background:var(--yellow)"></span>Med</button>
+            <button class="seg-opt" data-sev="high" onclick="pickSev(this)"><span class="dot" style="background:var(--red)"></span>High</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="field">
+        <div class="field-label">What happened? <span class="req">*</span></div>
+        <textarea class="inp" placeholder="Describe the failure. What did you expect, what did you get?"></textarea>
+      </div>
+
+      <!-- Repro -->
+      <div class="field" style="margin-bottom:4px">
+        <div class="field-label">Prompt / reproduction <span class="opt">optional but recommended</span></div>
+        <textarea class="inp" style="font-family:var(--mono);font-size:13px;min-height:80px" placeholder="Paste the exact prompt or minimal repro…"></textarea>
+        <div class="hint">Reports with a copy-paste repro are <b style="color:var(--text-2)">4× more likely</b> to get confirmed.</div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        Posts as <b style="color:var(--text-2)">@dj</b>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitBug()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+        Submit report
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span>
+  <span>Bug reported — thanks for making AI better!</span>
+</div>
+
+<script>
+  // Filter chips
+  function toggleChip(el){
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    el.classList.add('active');
+  }
+  // Dropdowns
+  function toggleDD(id){
+    const dd=document.getElementById(id);
+    document.querySelectorAll('.dd').forEach(d=>{if(d.id!==id)d.classList.remove('open')});
+    dd.classList.toggle('open');
+  }
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.dd'))document.querySelectorAll('.dd').forEach(d=>d.classList.remove('open'));
+  });
+  function pickFilter(el){el.classList.toggle('sel')}
+  function pickSort(el,label){
+    el.closest('.dd-menu').querySelectorAll('.dd-item').forEach(i=>i.classList.remove('sel'));
+    el.classList.add('sel');
+    document.getElementById('sortLabel').textContent=label;
+    document.getElementById('ddSort').classList.remove('open');
+  }
+  // Voting
+  function vote(el){
+    if(event.target.closest('.down'))return;
+    const num=el.querySelector('.num');
+    let n=parseInt(num.textContent);
+    if(el.classList.contains('voted')){el.classList.remove('voted');num.textContent=n-1}
+    else{el.classList.add('voted');num.textContent=n+1}
+  }
+  // Modal
+  function openModal(){document.getElementById('overlay').classList.add('open');document.body.style.overflow='hidden'}
+  function closeModal(){document.getElementById('overlay').classList.remove('open');document.body.style.overflow=''}
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+  // Model select
+  const versions={
+    'Claude':['Claude Opus 4','Claude Sonnet 4','Claude Haiku 4','Not sure / other version'],
+    'GPT':['GPT-4o','GPT-4.1','o3','o4-mini','Not sure / other version'],
+    'Gemini':['Gemini 2.5 Pro','Gemini 2.5 Flash','Gemini 2.0','Not sure / other version'],
+    'Other':['Llama 3.3','Mistral Large','DeepSeek V3','Grok 3','Other…']
+  };
+  function pickModel(el){
+    document.querySelectorAll('.model-opt').forEach(m=>m.classList.remove('sel'));
+    el.classList.add('sel');
+    const name=el.querySelector('.model-name').textContent;
+    const sel=document.getElementById('modelVersion');
+    sel.innerHTML='';
+    (versions[name]||[]).forEach(v=>{const o=document.createElement('option');o.textContent=v;sel.appendChild(o)});
+  }
+  // Severity
+  function pickSev(el){
+    document.querySelectorAll('#sevSeg .seg-opt').forEach(s=>s.classList.remove('sel-low','sel-med','sel-high'));
+    el.classList.add('sel-'+el.dataset.sev);
+  }
+  // Submit
+  function submitBug(){
+    closeModal();
+    const t=document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),3200);
+  }
+</script>
+</body>
+</html>
